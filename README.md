@@ -1,3 +1,4 @@
+
 # DJ Tools README
 
 This folder contains a small menu-driven toolkit for DJ library work.
@@ -409,3 +410,7 @@ Make sure:
 ### You are nervous about changing files
 
 That is exactly when you should use preview mode first. Options 4 and 5 are designed so you can review the results before writing.
+=======
+# dj-tools
+dj tools coded in python and made as batch scripts
+>>>>>>> 1ef1e52c6bdfe43b2437a77f0595b16f85dc605f
