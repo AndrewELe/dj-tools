@@ -1,0 +1,59 @@
+# Python env / cache
+**/.venv/
+**/__pycache__/
+*.py[cod]
+
+# OS junk
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local archive / state
+archive.txt
+*.archive
+
+# Logs and temp
+*.log
+*.tmp
+*.temp
+
+# Tool-generated backups
+*.bak
+
+# Windows noise
+Thumbs.db
+
+# Audio files
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.aac
+*.ogg
+
+# Editors
+.vscode/
+.idea/
+
+# Build output
+dist/
+build/
+*.exe
+
+# Large local folders
+music/
+downloads/
+
+# Crate-digger runtime state
+crate-digger/archive.txt
+crate-digger/discovered_sources.txt
+crate-digger/discovered_raw.txt

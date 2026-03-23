@@ -1,0 +1,128 @@
+DJ Tools Clone Setup
+====================
+
+Use this file if you cloned the repo and want to get `dj_tools_menu.bat` running correctly.
+
+What the menu needs
+-------------------
+
+1. Windows
+2. Python installed and available through the `py` launcher
+3. The Python package `mutagen` available either:
+   - inside `musicKeyConversion\.venv`, or
+   - in the Python that `py` launches
+4. The files inside `crate-digger` present if you want to use crate digger
+   - especially `yt-dlp.exe`
+   - `ffmpeg.exe`
+   - `ffprobe.exe`
+   - `fpcalc.exe`
+   - `sources.txt`
+   - `crawler.txt`
+   - `yt-dlp.conf`
+
+
+Recommended setup
+-----------------
+
+Open PowerShell in the repo root and run:
+
+`py -m venv musicKeyConversion\.venv`
+
+Then activate it:
+
+`.\musicKeyConversion\.venv\Scripts\Activate.ps1`
+
+Then install the required package:
+
+`python -m pip install mutagen`
+
+
+How to start the menu
+---------------------
+
+From the repo root:
+
+`.\dj_tools_menu.bat`
+
+You can also double-click `dj_tools_menu.bat` in File Explorer.
+
+
+Fastest way to verify setup
+---------------------------
+
+1. Run `.\dj_tools_menu.bat`
+2. Choose `4` or `5`
+3. Enter a test music folder
+4. Use preview mode only on the first run
+
+If the menu opens and those options run without a Python error, your setup is good.
+
+
+If Python is not installed
+--------------------------
+
+Install Python for Windows and make sure the `py` launcher is available.
+
+Quick check:
+
+`py --version`
+
+If that command fails, install Python first, then repeat the setup above.
+
+
+If the menu says Python is missing
+----------------------------------
+
+Try these checks:
+
+`py --version`
+
+`Test-Path .\musicKeyConversion\.venv\Scripts\python.exe`
+
+What they mean:
+
+- If `py --version` fails, Python is not installed correctly.
+- If the venv path returns `False`, create the virtual environment using the commands above.
+
+
+If crate digger does not run
+----------------------------
+
+The menu option `3` depends on files inside `crate-digger`.
+
+Check that these exist:
+
+- `crate-digger\yt-dlp.exe`
+- `crate-digger\ffmpeg.exe`
+- `crate-digger\ffprobe.exe`
+- `crate-digger\fpcalc.exe`
+- `crate-digger\sources.txt`
+- `crate-digger\crawler.txt`
+- `crate-digger\yt-dlp.conf`
+
+If any of those are missing, crate digger will not work until they are restored.
+
+
+Clean start commands
+--------------------
+
+If you want the full setup in one place, run these from the repo root:
+
+`py -m venv musicKeyConversion\.venv`
+
+`.\musicKeyConversion\.venv\Scripts\Activate.ps1`
+
+`python -m pip install --upgrade pip`
+
+`python -m pip install mutagen`
+
+`.\dj_tools_menu.bat`
+
+
+Notes
+-----
+
+- The menu prefers `musicKeyConversion\.venv\Scripts\python.exe` if it exists.
+- If that venv does not exist, the menu falls back to `py`.
+- Options `4`, `5`, and `6` are the ones that depend on Python package setup.
+- Option `3` uses the executables and text files in `crate-digger`.
