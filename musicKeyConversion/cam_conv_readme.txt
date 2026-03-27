@@ -12,8 +12,8 @@ Features:
 - Skips missing/invalid keys
 - Prints summary report
 - Optional backup before write
-- Optional cleanup of .bak files after successful write
 - Optional file renaming with Camelot + key + BPM first
+- Updates the track title so Camelot + key appear before the title in DJ software
 
 Default rename pattern:
     {camelot} | {key} | {bpm} - {artist} - {title}
@@ -24,5 +24,5 @@ Recommended first use:
 Actually write changes:
     python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --verbose
 
-Write + rename + cleanup backups:
-    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --cleanup-backups --rename --verbose
+Write + rename:
+    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --rename --verbose

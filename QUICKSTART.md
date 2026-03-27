@@ -72,7 +72,7 @@ Choose:
 `4. Camelot converter`
 
 Use this when:
-You want to convert key tags to Camelot and optionally rename files.
+You want to convert key tags to Camelot, update the track title, and optionally rename files.
 
 Safest first run:
 
@@ -88,8 +88,8 @@ Run it again and type `W` to write changes.
 Recommended write settings:
 
 - Backups: `Y`
-- Cleanup backups after write: `N` at first
 - Rename files: `N` unless you really want renamed filenames
+- Use `6` later if you want `.bak` files removed
 
 ## 5. Write Camelot Info Into Comments
 
@@ -99,6 +99,9 @@ Choose:
 Use this when:
 You want comments like:
 `8A | Am | 128`
+
+This also updates the track title to:
+`8A | Am - Song Title`
 
 Safest first run:
 
@@ -113,7 +116,7 @@ Run it again with `W` to write changes.
 Recommended write settings:
 
 - Backups: `Y`
-- Cleanup backups after write: `N` at first
+- Use `6` later if you want `.bak` files removed
 
 ## 6. Delete `.bak` Backup Files
 
@@ -129,13 +132,36 @@ It defaults to `C:\dj_tools\musicKeyConversion`
 Use this when:
 You are sure you no longer need the `.bak` backup files.
 
+## 7. Generate Rekordbox XML
+
+Choose:
+`7. Rekordbox XML generator`
+
+Use this when:
+You want to turn a folder tree like `Root / Genre / high|mid|low / tracks` into a Rekordbox-importable XML playlist structure.
+
+What it does:
+
+- Prompts for your music root folder
+- Scans the folder tree
+- Creates a revisioned XML file in that root folder
+- Creates a matching log file in that root folder
+
+Typical workflow:
+
+1. Run Option `7`
+2. Enter your music root folder
+3. Let it generate the XML
+4. Point Rekordbox to that XML in Preferences
+5. Import the playlists inside Rekordbox
+
 ## Safe Defaults
 
 If you are unsure:
 
 - Preview before writing
 - Keep backups on
-- Do not delete backups until you confirm everything looks right
+- Use Option `6` later if you want backups removed
 - Use step mode in crate digger if you want control
 
 ## Which Tool Should I Use?
@@ -151,6 +177,8 @@ Use `4` if you want Camelot written to tags and maybe filenames.
 Use `5` if you want Camelot plus key plus BPM written to comments only.
 
 Use `6` if you want leftover `.bak` files removed.
+
+Use `7` if you want a Rekordbox XML generated from your folder structure.
 
 ## Need More Detail?
 

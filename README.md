@@ -18,7 +18,8 @@ The menu currently includes:
 4. Camelot converter
 5. Camelot to comments
 6. Clean `.bak` files
-7. Exit
+7. Rekordbox XML generator
+8. Exit
 
 ## Basic Usage
 
@@ -162,7 +163,7 @@ When you want to pull new music from your saved source lists and optionally dedu
 ## Menu Option 4: Camelot Converter
 
 Purpose:
-Reads each audio file's musical key, converts it to Camelot notation, writes the result to a tag, and can optionally rename files.
+Reads each audio file's musical key, converts it to Camelot notation, writes the result to a tag, updates the track title, and can optionally rename files.
 
 What file types it works with:
 
@@ -230,13 +231,8 @@ Meaning:
 - `Y` or Enter = make a backup copy before editing each file
 - `N` = do not create backups
 
-Next prompt:
-`Delete backup files after a successful write? (Y/N, default N)`
-
-Meaning:
-
-- `Y` = remove `.bak` files after successful writes
-- `N` or Enter = keep `.bak` files
+Important:
+Backups are now kept until you remove them yourself with Menu Option 6.
 
 ### Rename Option
 
@@ -253,6 +249,13 @@ Default rename format:
 
 If BPM is missing:
 The script skips BPM automatically.
+
+Track title update:
+When you write changes, the title tag is also updated to:
+`Camelot | Musical Key - Title`
+
+Example:
+`9A | Em - Sunday Sunrise`
 
 Custom rename pattern prompt:
 `Optional custom filename pattern (press Enter to use the format above)`
@@ -312,12 +315,15 @@ What it asks for:
 - Optional key source tag override
 - Preview or write mode
 - Backup creation
-- Backup cleanup
 - Verbose output
 - Show Camelot map
 
 What the prompts mean:
 They work the same way as in Option 4, except there is no rename section.
+
+Track title update:
+When you write changes, this tool also updates the title tag to:
+`Camelot | Musical Key - Title`
 
 Best use case:
 Use this when you want a clean, Rekordbox-friendly comment format without changing filenames.
@@ -357,7 +363,35 @@ When to use it:
 Important note:
 This deletes the `.bak` files it finds. Make sure you no longer need those backups first.
 
-## Menu Option 7: Exit
+## Menu Option 7: Rekordbox XML Generator
+
+Purpose:
+Scans a structured music folder and creates a Rekordbox-compatible XML file plus a matching log file.
+
+Expected folder structure:
+`Root / Genre / (high|mid|low) / tracks`
+
+What happens:
+This launches `xml_generator\rekordbox_xml_generator.py`.
+
+What it asks for:
+`Enter the music root folder path (or 'q' to quit)`
+
+What to enter:
+The top-level folder that contains your genre folders.
+
+What it creates:
+
+- A revisioned XML file like `rekordbox_export_windows_rev1.xml`
+- A matching log file like `rekordbox_export_windows_rev1.log`
+
+Best use case:
+Use this when you want to generate playlist XML from your folder tree, point Rekordbox to that XML in Preferences, and then import the playlists into Rekordbox.
+
+Important note:
+This tool is read-only against your music files. It does not rename, move, or modify audio files.
+
+## Menu Option 8: Exit
 
 Purpose:
 Closes the menu.
@@ -386,6 +420,14 @@ Closes the menu.
 3. Use auto mode if you want a hands-off run
 4. Run dedupe at the end if needed
 
+### For Rekordbox XML Playlist Import
+
+1. Use Option 7
+2. Enter the root folder that contains your genre folders
+3. Let the tool generate the XML and log in that same root folder
+4. Point Rekordbox to the generated XML in Preferences
+5. Import playlists from the XML inside Rekordbox
+
 ## Tips
 
 - If you are unsure, choose preview mode before writing or deleting anything
@@ -407,3 +449,7 @@ Make sure:
 - You pasted a folder path, not a file path, unless the tool explicitly asks for a file
 - The path is accessible on your machine
 
+=======
+### You are nervous about changing files
+
+That is exactly when you should use preview mode first. Options 4 and 5 are designed so you can review the results before writing.

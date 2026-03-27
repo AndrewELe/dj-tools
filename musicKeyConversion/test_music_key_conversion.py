@@ -2,7 +2,6 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 
 HERE = Path(__file__).resolve().parent
@@ -83,6 +82,20 @@ class SharedBehaviorTests(unittest.TestCase):
             "9A | Em | 174 - Artist - Title",
         )
 
+    def test_title_builder_prefixes_camelot_and_key_without_stacking(self):
+        self.assertEqual(
+            camelot_to_comments.build_title_value("9A", "Em", "Sunday Sunrise"),
+            "9A | Em - Sunday Sunrise",
+        )
+        self.assertEqual(
+            camelot_to_comments.build_title_value("10A", "Bm", "9A | Em - Sunday Sunrise"),
+            "10A | Bm - Sunday Sunrise",
+        )
+        self.assertEqual(
+            camelot_converter.build_title_value("9A", "Em", "Sunday Sunrise"),
+            "9A | Em - Sunday Sunrise",
+        )
+
     def test_script_folder_can_be_relocated(self):
         for filename in ("camelot_to_comments.py", "camelot_converter.py", "inspect_tags.py"):
             with self.subTest(filename=filename):
@@ -94,29 +107,6 @@ class SharedBehaviorTests(unittest.TestCase):
 
         self.assertEqual(camelot_to_comments.decode_value(DummyTextFrame()), ["174"])
         self.assertEqual(camelot_converter.decode_value(DummyTextFrame()), ["174"])
-
-    def test_cleanup_backup_files_deletes_original_and_renamed_backup_paths(self):
-        original = Path(r"C:\music\track.mp3")
-        renamed = Path(r"C:\music\8A_track.mp3")
-        original_backup = original.with_suffix(original.suffix + ".bak")
-        renamed_backup = renamed.with_suffix(renamed.suffix + ".bak")
-
-        existing = {original_backup, renamed_backup}
-        deleted = []
-
-        def fake_exists(self):
-            return self in existing
-
-        def fake_unlink(self):
-            deleted.append(self)
-            existing.discard(self)
-
-        with patch.object(Path, "exists", fake_exists), patch.object(Path, "unlink", fake_unlink):
-            count = camelot_converter.cleanup_backup_files(original, renamed, original_backup)
-
-        self.assertEqual(count, 2)
-        self.assertEqual(deleted, [original_backup, renamed_backup])
-
 
 if __name__ == "__main__":
     unittest.main()

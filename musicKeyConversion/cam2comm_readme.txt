@@ -21,7 +21,7 @@ Features:
 - Pulls BPM from metadata
 - Dry-run by default
 - Optional backup before write
-- Optional cleanup of .bak files after successful write
+- Updates the track title so Camelot + key appear before the title in DJ software
 - Skips missing/invalid keys
 - Prints summary report
 
@@ -31,5 +31,5 @@ Recommended first use:
 Actually write changes:
     python camelot_to_comments.py "D:\Music\camelot_test" --write --backup --verbose
 
-Write + cleanup backups:
-    python camelot_to_comments.py "D:\Music\camelot_test" --write --backup --cleanup-backups --verbose
+Write comments + title tag:
+    python camelot_to_comments.py "D:\Music\camelot_test" --write --backup --verbose

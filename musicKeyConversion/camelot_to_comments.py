@@ -25,7 +25,7 @@ Features:
 - Pulls BPM from metadata when available
 - Dry-run by default
 - Optional backup before write
-- Optional cleanup of .bak files after successful write
+- Updates the track title tag so Camelot + key appear before the title in DJ software
 - Skips missing/invalid keys
 - Prints summary report
 
@@ -35,8 +35,8 @@ Recommended first use:
 Actually write changes:
     python camelot_to_comments.py "D:\\Music\\camelot_test" --write --backup --verbose
 
-Write + cleanup backups:
-    python camelot_to_comments.py "D:\\Music\\camelot_test" --write --backup --cleanup-backups --verbose
+Write comments + title tag:
+    python camelot_to_comments.py "D:\\Music\\camelot_test" --write --backup --verbose
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ from mutagen import File
 from mutagen import MutagenError
 from mutagen.aiff import AIFF
 from mutagen.flac import FLAC
-from mutagen.id3 import COMM, ID3
+from mutagen.id3 import COMM, ID3, TIT2
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 
@@ -160,7 +160,6 @@ class Stats:
     unchanged: int = 0
     would_write: int = 0
     written: int = 0
-    backups_deleted: int = 0
     errors: int = 0
 
 
@@ -445,9 +444,71 @@ def set_comment(audio: Any, value: str) -> None:
         raise ValueError(f"Unsupported file type object: {type(audio).__name__}")
 
 
+def get_existing_title(audio: Any) -> str:
+    try:
+        if isinstance(audio, (MP3, AIFF)):
+            tags = audio.tags
+            if not tags:
+                return ""
+            if "TIT2" in tags:
+                vals = decode_value(tags.get("TIT2"))
+                if vals:
+                    return vals[0]
+
+        elif isinstance(audio, FLAC):
+            if not audio.tags:
+                return ""
+            for k, v in audio.tags.items():
+                if k.upper() == "TITLE":
+                    vals = decode_value(v)
+                    if vals:
+                        return vals[0]
+
+        elif isinstance(audio, MP4):
+            if not audio.tags:
+                return ""
+            vals = decode_value(audio.tags.get("\xa9nam"))
+            return vals[0] if vals else ""
+    except Exception:
+        return ""
+
+    return ""
+
+
+def set_title(audio: Any, value: str) -> None:
+    if isinstance(audio, (MP3, AIFF)):
+        if audio.tags is None:
+            audio.add_tags()
+        tags = audio.tags
+        tags.delall("TIT2")
+        tags.add(TIT2(encoding=3, text=[value]))
+
+    elif isinstance(audio, FLAC):
+        if audio.tags is None:
+            audio.add_tags()
+        audio["TITLE"] = [value]
+
+    elif isinstance(audio, MP4):
+        if audio.tags is None:
+            audio.add_tags()
+        audio.tags["\xa9nam"] = [value]
+
+    else:
+        raise ValueError(f"Unsupported file type object: {type(audio).__name__}")
+
+
 def format_key_display(parsed_key: tuple[str, str]) -> str:
     note, mode = parsed_key
     return f"{note}m" if mode == "minor" else note
+
+
+def strip_title_prefix(title: str) -> str:
+    return re.sub(r"^\s*\d{1,2}[AB]\s+\|\s+.+?\s+-\s+", "", title.strip(), count=1)
+
+
+def build_title_value(camelot: str, key_display: str, title: str) -> str:
+    base_title = strip_title_prefix(title) or title.strip() or "Unknown Title"
+    return f"{camelot} | {key_display} - {base_title}"
 
 
 def format_bpm_display(raw_bpm: str) -> str:
@@ -556,7 +617,6 @@ def process_file(
     source_field: Optional[str],
     write: bool,
     backup: bool,
-    cleanup_backups: bool,
     verbose: bool,
     stats: Stats,
 ) -> None:
@@ -600,32 +660,32 @@ def process_file(
         bpm_raw = get_bpm_text(audio)
         bpm_display = format_bpm_display(bpm_raw)
         comment_value = build_comment_value(camelot, key_display, bpm_display)
+        existing_title = get_existing_title(audio)
+        title_source = existing_title or path.stem
+        title_value = build_title_value(camelot, key_display, title_source)
 
         existing_comment = get_existing_comment(audio)
-        if existing_comment == comment_value:
+        if existing_comment == comment_value and existing_title == title_value:
             stats.unchanged += 1
             if verbose:
-                print(f"[UNCHANGED] {path} | source={raw_key!r} -> comment={comment_value}")
+                print(f"[UNCHANGED] {path} | source={raw_key!r} -> comment={comment_value} | title={title_value}")
             return
 
         if not write:
             stats.would_write += 1
-            print(f"[DRY-RUN] {path} | source={raw_key!r} -> comment={comment_value}")
+            print(f"[DRY-RUN] {path} | source={raw_key!r} -> comment={comment_value} | title={title_value}")
             return
 
-        backup_path = None
         if backup:
-            backup_path = create_backup(path)
+            create_backup(path)
 
         set_comment(audio, comment_value)
+        if existing_title != title_value:
+            set_title(audio, title_value)
         audio.save()
 
-        if cleanup_backups and backup_path and backup_path.exists():
-            backup_path.unlink()
-            stats.backups_deleted += 1
-
         stats.written += 1
-        print(f"[WROTE] {path} | source={raw_key!r} -> comment={comment_value}")
+        print(f"[WROTE] {path} | source={raw_key!r} -> comment={comment_value} | title={title_value}")
 
     except MutagenError as e:
         stats.errors += 1
@@ -654,7 +714,6 @@ def print_summary(stats: Stats, write: bool) -> None:
     print(f"Comment already correct:      {stats.unchanged}")
     if write:
         print(f"Files written:                {stats.written}")
-        print(f"Backups deleted:              {stats.backups_deleted}")
     else:
         print(f"Files that would be written:  {stats.would_write}")
     print(f"Errors:                       {stats.errors}")
@@ -684,11 +743,6 @@ def parse_args() -> argparse.Namespace:
         help="Create a .bak backup beside each file before writing.",
     )
     parser.add_argument(
-        "--cleanup-backups",
-        action="store_true",
-        help="Delete .bak backup files after a successful write.",
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print skip reasons and unchanged files too.",
@@ -710,10 +764,6 @@ def main() -> int:
         print(f"Folder does not exist or is not a directory: {root}", file=sys.stderr)
         return 2
 
-    if args.cleanup_backups and not args.backup:
-        print("--cleanup-backups requires --backup", file=sys.stderr)
-        return 2
-
     if args.show_map:
         print_mapping_table()
 
@@ -725,7 +775,6 @@ def main() -> int:
             source_field=source_field,
             write=args.write,
             backup=args.backup,
-            cleanup_backups=args.cleanup_backups,
             verbose=args.verbose,
             stats=stats,
         )

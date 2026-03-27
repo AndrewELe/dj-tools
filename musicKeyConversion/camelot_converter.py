@@ -14,8 +14,8 @@ Features:
 - Skips missing/invalid keys
 - Prints summary report
 - Optional backup before write
-- Optional cleanup of .bak files after successful write
 - Optional file renaming with Camelot + key first, and BPM only when available
+- Updates the track title tag so Camelot + key appear before the title in DJ software
 
 Default rename behavior:
 - With BPM:
@@ -29,8 +29,8 @@ Recommended first use:
 Actually write changes:
     python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --verbose
 
-Write + rename + cleanup backups:
-    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --cleanup-backups --rename --verbose
+Write + rename:
+    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --rename --verbose
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ from mutagen import File
 from mutagen import MutagenError
 from mutagen.aiff import AIFF
 from mutagen.flac import FLAC
-from mutagen.id3 import COMM, ID3, TIT1, TXXX
+from mutagen.id3 import COMM, ID3, TIT1, TIT2, TXXX
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4, MP4FreeForm
 
@@ -159,7 +159,6 @@ class Stats:
     would_write: int = 0
     written: int = 0
     renamed: int = 0
-    backups_deleted: int = 0
     errors: int = 0
 
 
@@ -571,6 +570,15 @@ def format_key_display(parsed_key: tuple[str, str]) -> str:
     return f"{note}m" if mode == "minor" else note
 
 
+def strip_title_prefix(title: str) -> str:
+    return re.sub(r"^\s*\d{1,2}[AB]\s+\|\s+.+?\s+-\s+", "", title.strip(), count=1)
+
+
+def build_title_value(camelot: str, key_display: str, title: str) -> str:
+    base_title = strip_title_prefix(title) or title.strip() or "Unknown Title"
+    return f"{camelot} | {key_display} - {base_title}"
+
+
 def format_bpm_display(raw_bpm: str) -> str:
     """
     Normalizes BPM strings for filenames.
@@ -648,6 +656,32 @@ def get_bpm_text(audio: Any) -> str:
         return ""
 
     return ""
+
+
+def get_existing_title(audio: Any) -> str:
+    return get_tag_text(audio, ["TIT2", "TITLE", "\xa9nam"])
+
+
+def set_title(audio: Any, value: str) -> None:
+    if isinstance(audio, (MP3, AIFF)):
+        if audio.tags is None:
+            audio.add_tags()
+        tags = audio.tags
+        tags.delall("TIT2")
+        tags.add(TIT2(encoding=3, text=[value]))
+
+    elif isinstance(audio, FLAC):
+        if audio.tags is None:
+            audio.add_tags()
+        audio["TITLE"] = [value]
+
+    elif isinstance(audio, MP4):
+        if audio.tags is None:
+            audio.add_tags()
+        audio.tags["\xa9nam"] = [value]
+
+    else:
+        raise ValueError(f"Unsupported file type object: {type(audio).__name__}")
 
 
 def build_default_filename_stem(
@@ -737,28 +771,6 @@ def create_backup(path: Path) -> Path:
     return backup_path
 
 
-def cleanup_backup_files(original_path: Path, final_path: Path, backup_path: Optional[Path]) -> int:
-    candidates: list[Path] = []
-
-    if backup_path is not None:
-        candidates.append(backup_path)
-
-    if final_path != original_path:
-        candidates.append(final_path.with_suffix(final_path.suffix + ".bak"))
-
-    deleted = 0
-    seen: set[Path] = set()
-    for candidate in candidates:
-        if candidate in seen:
-            continue
-        seen.add(candidate)
-        if candidate.exists():
-            candidate.unlink()
-            deleted += 1
-
-    return deleted
-
-
 def iter_audio_files(root: Path) -> Iterable[Path]:
     for path in sorted(root.rglob("*")):
         if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
@@ -772,7 +784,6 @@ def process_file(
     source_field: Optional[str],
     write: bool,
     backup: bool,
-    cleanup_backups: bool,
     rename: bool,
     rename_pattern: str,
     verbose: bool,
@@ -814,11 +825,16 @@ def process_file(
                 print(f"[SKIP] Could not map key: {path} -> {raw_key!r}")
             return
 
+        key_display = format_key_display(parsed_key)
         existing = get_existing_destination_value(audio, dest, custom_name)
-        if existing == camelot and not rename:
+        existing_title = get_existing_title(audio)
+        title_source = existing_title or path.stem
+        desired_title = build_title_value(camelot, key_display, title_source)
+
+        if existing == camelot and existing_title == desired_title and not rename:
             stats.unchanged += 1
             if verbose:
-                print(f"[UNCHANGED] {path} | {raw_key} -> {camelot}")
+                print(f"[UNCHANGED] {path} | {raw_key} -> {camelot} | title={desired_title}")
             return
 
         if not write:
@@ -834,10 +850,10 @@ def process_file(
                 )
                 print(
                     f"[DRY-RUN] {path} | source={raw_key!r} -> camelot={camelot} | "
-                    f"rename_to={preview_path.name}"
+                    f"title={desired_title} | rename_to={preview_path.name}"
                 )
             else:
-                print(f"[DRY-RUN] {path} | source={raw_key!r} -> camelot={camelot}")
+                print(f"[DRY-RUN] {path} | source={raw_key!r} -> camelot={camelot} | title={desired_title}")
             return
 
         backup_path = None
@@ -846,7 +862,11 @@ def process_file(
 
         if existing != camelot:
             set_destination_value(audio, dest, camelot, custom_name)
-            audio.save()
+
+        if existing_title != desired_title:
+            set_title(audio, desired_title)
+
+        audio.save()
 
         final_path = path
 
@@ -863,11 +883,8 @@ def process_file(
                 stats.renamed += 1
             final_path = renamed_path
 
-        if cleanup_backups:
-            stats.backups_deleted += cleanup_backup_files(path, final_path, backup_path)
-
         stats.written += 1
-        print(f"[WROTE] {final_path} | source={raw_key!r} -> camelot={camelot}")
+        print(f"[WROTE] {final_path} | source={raw_key!r} -> camelot={camelot} | title={desired_title}")
 
     except MutagenError as e:
         stats.errors += 1
@@ -897,7 +914,6 @@ def print_summary(stats: Stats, write: bool) -> None:
     if write:
         print(f"Files written:                {stats.written}")
         print(f"Files renamed:                {stats.renamed}")
-        print(f"Backups deleted:              {stats.backups_deleted}")
     else:
         print(f"Files that would be written:  {stats.would_write}")
     print(f"Errors:                       {stats.errors}")
@@ -936,11 +952,6 @@ def parse_args() -> argparse.Namespace:
         "--backup",
         action="store_true",
         help="Create a .bak backup beside each file before writing.",
-    )
-    parser.add_argument(
-        "--cleanup-backups",
-        action="store_true",
-        help="Delete .bak backup files after a successful write.",
     )
     parser.add_argument(
         "--rename",
@@ -982,10 +993,6 @@ def main() -> int:
         print("--custom-name is required when --dest custom", file=sys.stderr)
         return 2
 
-    if args.cleanup_backups and not args.backup:
-        print("--cleanup-backups requires --backup", file=sys.stderr)
-        return 2
-
     if args.show_map:
         print_mapping_table()
 
@@ -999,7 +1006,6 @@ def main() -> int:
             source_field=source_field,
             write=args.write,
             backup=args.backup,
-            cleanup_backups=args.cleanup_backups,
             rename=args.rename,
             rename_pattern=args.rename_pattern,
             verbose=args.verbose,
