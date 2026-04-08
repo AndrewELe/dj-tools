@@ -11,18 +11,20 @@ Features:
 - Handles enharmonic spellings (C# / Db, etc.)
 - Skips missing/invalid keys
 - Prints summary report
-- Optional backup before write
-- Optional file renaming with Camelot + key + BPM first
+- Optional file renaming with Camelot + key first, and BPM only when available
 - Updates the track title so Camelot + key appear before the title in DJ software
 
-Default rename pattern:
-    {camelot} | {key} | {bpm} - {artist} - {title}
+Built-in rename format:
+    Camelot | Musical Key | BPM - Artist - Title
+    BPM is skipped automatically if it is missing.
+    The track title tag is also updated to:
+    Camelot | Musical Key - Title
 
 Recommended first use:
     python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --verbose
 
 Actually write changes:
-    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --verbose
+    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --verbose
 
 Write + rename:
-    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --rename --verbose
+    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --rename --verbose

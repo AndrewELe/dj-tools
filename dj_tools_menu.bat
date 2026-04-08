@@ -124,9 +124,7 @@ set "DEST_CHOICE="
 set "CUSTOM_NAME="
 set "SOURCE_FIELD="
 set "WRITE_CHOICE="
-set "BACKUP_CHOICE="
 set "RENAME_CHOICE="
-set "RENAME_PATTERN="
 set "VERBOSE_CHOICE="
 set "SHOW_MAP_CHOICE="
 
@@ -152,11 +150,7 @@ if not "%SOURCE_FIELD%"=="" set "SOURCE_FIELD_ARG=--source-field ""%SOURCE_FIELD
 
 echo.
 set /p "WRITE_CHOICE=Press Enter for a safe preview only, or type W to actually write tag changes: "
-if /I "%WRITE_CHOICE%"=="W" (
-    set "WRITE_ARGS=--write"
-    set /p "BACKUP_CHOICE=Create .bak backup files before writing? (Y/N, default Y): "
-    if /I not "%BACKUP_CHOICE%"=="N" set "WRITE_ARGS=!WRITE_ARGS! --backup"
-)
+if /I "%WRITE_CHOICE%"=="W" set "WRITE_ARGS=--write"
 
 echo.
 echo Filename rename format:
@@ -165,11 +159,7 @@ echo BPM is skipped automatically if it is missing.
 echo The track title tag is also updated to:
 echo   Camelot ^| Musical Key - Title
 set /p "RENAME_CHOICE=Also rename the files using that format? (Y/N, default N): "
-if /I "%RENAME_CHOICE%"=="Y" (
-    set "RENAME_ARGS=--rename"
-    set /p "RENAME_PATTERN=Optional custom filename pattern (press Enter to use the format above): "
-    if not "%RENAME_PATTERN%"=="" set "RENAME_ARGS=!RENAME_ARGS! --rename-pattern ""%RENAME_PATTERN%"""
-)
+if /I "%RENAME_CHOICE%"=="Y" set "RENAME_ARGS=--rename"
 
 set /p "VERBOSE_CHOICE=Show detailed output while processing? (Y/N, default Y): "
 if /I not "%VERBOSE_CHOICE%"=="N" set "VERBOSE_ARG=--verbose"
@@ -210,7 +200,6 @@ set "VERBOSE_ARG="
 set "SHOW_MAP_ARG="
 set "SOURCE_FIELD="
 set "WRITE_CHOICE="
-set "BACKUP_CHOICE="
 set "VERBOSE_CHOICE="
 set "SHOW_MAP_CHOICE="
 
@@ -221,11 +210,7 @@ if not "%SOURCE_FIELD%"=="" set "SOURCE_FIELD_ARG=--source-field ""%SOURCE_FIELD
 
 echo.
 set /p "WRITE_CHOICE=Press Enter for a safe preview only, or type W to actually write comment tags: "
-if /I "%WRITE_CHOICE%"=="W" (
-    set "WRITE_ARGS=--write"
-    set /p "BACKUP_CHOICE=Create .bak backup files before writing? (Y/N, default Y): "
-    if /I not "%BACKUP_CHOICE%"=="N" set "WRITE_ARGS=!WRITE_ARGS! --backup"
-)
+if /I "%WRITE_CHOICE%"=="W" set "WRITE_ARGS=--write"
 
 set /p "VERBOSE_CHOICE=Show detailed output while processing? (Y/N, default Y): "
 if /I not "%VERBOSE_CHOICE%"=="N" set "VERBOSE_ARG=--verbose"

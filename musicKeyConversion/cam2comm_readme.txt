@@ -20,7 +20,6 @@ Features:
 - Converts standard musical keys to Camelot notation
 - Pulls BPM from metadata
 - Dry-run by default
-- Optional backup before write
 - Updates the track title so Camelot + key appear before the title in DJ software
 - Skips missing/invalid keys
 - Prints summary report
@@ -29,7 +28,7 @@ Recommended first use:
     python camelot_to_comments.py "D:\Music\camelot_test" --verbose
 
 Actually write changes:
-    python camelot_to_comments.py "D:\Music\camelot_test" --write --backup --verbose
+    python camelot_to_comments.py "D:\Music\camelot_test" --write --verbose
 
 Write comments + title tag:
-    python camelot_to_comments.py "D:\Music\camelot_test" --write --backup --verbose
+    python camelot_to_comments.py "D:\Music\camelot_test" --write --verbose

@@ -56,12 +56,59 @@ At startup:
 - Type `A` to run everything automatically
 - Type `Q` to quit
 
+Before downloads begin:
+
+- The tool checks general internet reachability
+- The tool checks SoundCloud reachability
+- If either check warns, you can type `C` to continue anyway or `M` to return to the main menu
+- The tool verifies that the download root exists and is writable before yt-dlp starts
+
+Default download root:
+`C:\Music\SoundCloud`
+
+Optional override:
+Set `DJTOOLS_MUSIC_ROOT` first if you want crate digger and dedupe to use another writable folder
+
 While stepping:
 
 - `Enter` = run this source
 - `S` = skip this source
 - `A` = auto-run the rest
 - `Q` = quit
+
+Where to edit crate digger behavior:
+
+- `C:\dj_tools\crate-digger\sources.txt` = main source URLs
+- `C:\dj_tools\crate-digger\crawler.txt` = extra source URLs that also act as discovery seeds
+- `C:\dj_tools\crate-digger\discovered_sources.txt` = auto-generated discovered URLs
+- `C:\dj_tools\crate-digger\digcrate.bat` = main run logic and per-source download cap
+- `C:\dj_tools\crate-digger\discover.ps1` = discovery logic and discovery inspection cap
+
+How to change how many songs download per source:
+
+- Open `C:\dj_tools\crate-digger\digcrate.bat`
+- Find:
+  `set "PLAYLIST_ARGS=--playlist-end 5"`
+- Change `5` to the number you want
+
+Also update discovery if you want matching behavior:
+
+- Open `C:\dj_tools\crate-digger\discover.ps1`
+- Find:
+  `--playlist-end 5`
+- Change `5` to the same number
+
+Special case:
+
+- `https://soundcloud.com/druleprivate/likes` is intentionally set to download without the normal cap in `digcrate.bat`
+
+How to add or remove sources:
+
+- Add or delete lines in `C:\dj_tools\crate-digger\sources.txt` for main sources
+- Add or delete lines in `C:\dj_tools\crate-digger\crawler.txt` for crawler seed sources
+- Use one URL per line
+- Blank lines are ignored
+- Start a line with `#` if you want to disable a source without deleting it
 
 Recommended:
 Use step mode if you want more control.
@@ -87,9 +134,16 @@ Run it again and type `W` to write changes.
 
 Recommended write settings:
 
-- Backups: `Y`
 - Rename files: `N` unless you really want renamed filenames
-- Use `6` later if you want `.bak` files removed
+
+Rename format shown by the tool:
+`Camelot | Musical Key | BPM - Artist - Title`
+
+Important behavior:
+
+- BPM is skipped automatically if it is missing
+- The title tag is updated to `Camelot | Musical Key - Title`
+- When renaming is on, the tool previews the current filename and new filename before or during processing
 
 ## 5. Write Camelot Info Into Comments
 
@@ -112,11 +166,6 @@ Safest first run:
 
 If the preview looks right:
 Run it again with `W` to write changes.
-
-Recommended write settings:
-
-- Backups: `Y`
-- Use `6` later if you want `.bak` files removed
 
 ## 6. Delete `.bak` Backup Files
 
@@ -160,8 +209,6 @@ Typical workflow:
 If you are unsure:
 
 - Preview before writing
-- Keep backups on
-- Use Option `6` later if you want backups removed
 - Use step mode in crate digger if you want control
 
 ## Which Tool Should I Use?

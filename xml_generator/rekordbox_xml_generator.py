@@ -16,13 +16,26 @@ Expected source structure:
             mid/
             low/
 
+    Nested genre folders are also supported:
+    Root/
+        Genre/
+            SubGenre/
+                high/
+                mid/
+                low/
+            high/
+            mid/
+            low/
+
+    Subfolders inside energy folders are also supported — their tracks are
+    included in the parent energy playlist.
+
 Important rules:
     - Energy folders (high/mid/low) must always be children of genre folders
-    - Tracks are only processed inside energy folders
+    - Tracks are only processed inside energy folders (recursively)
     - Files outside energy folders are ignored
     - Hidden files/folders are ignored
     - Unsupported formats are ignored
-    - Nested folders inside energy folders are ignored and logged
     - Empty energy folders do not become playlists
     - The script is read-only with respect to music files
 
@@ -90,9 +103,13 @@ class TrackEntry:
 @dataclass
 class PlaylistEntry:
     library_root_name: str
-    genre: str
+    genre_path: List[str]  # e.g. ["Techno"] or ["Techno", "Hard Techno"]
     energy: str
     tracks: List[TrackEntry] = field(default_factory=list)
+
+    @property
+    def genre(self) -> str:
+        return "/".join(self.genre_path)
 
     @property
     def display_path(self) -> str:
@@ -254,6 +271,152 @@ def relative_display(root_path: Path, target: Path) -> str:
 # Folder scanning
 # -----------------------------
 
+def collect_tracks_from_energy_dir(
+    energy_dir: Path,
+    display_root: Path,
+    genre_path: List[str],
+    log_lines: List[str],
+    track_id_counter: int,
+) -> tuple[List[TrackEntry], int]:
+    """
+    Collect all audio tracks from an energy folder, recursing into subfolders.
+    Returns (tracks, updated_track_id_counter).
+    """
+    tracks: List[TrackEntry] = []
+    genre_name = "/".join(genre_path)
+
+    for item in sorted(energy_dir.rglob("*"), key=lambda p: str(p).lower()):
+        if not item.is_file():
+            continue
+
+        if is_hidden(item):
+            log_skip(log_lines, f"Hidden file: {relative_display(display_root, item)}")
+            continue
+
+        ext = item.suffix.lower()
+        if ext not in SUPPORTED_EXTENSIONS:
+            log_skip(log_lines, f"Unsupported file: {relative_display(display_root, item)}")
+            continue
+
+        track = TrackEntry(
+            track_id=track_id_counter,
+            name=item.stem,
+            location=path_to_file_url(item),
+            absolute_path=item.resolve(),
+            size=item.stat().st_size,
+            kind=item.suffix.lower().lstrip("."),
+            artist="",
+            composer="",
+            album="",
+            grouping="",
+            genre=genre_name,
+            total_time="0",
+            disc_number="0",
+            track_number="0",
+            year="0",
+            average_bpm="0",
+            date_added=build_date_added(item),
+            bit_rate="0",
+            sample_rate="0",
+            comments="",
+            play_count="0",
+            rating="0",
+            remixer="",
+            tonality="",
+            label="",
+            mix="",
+        )
+        track_id_counter += 1
+        tracks.append(track)
+
+    return tracks, track_id_counter
+
+
+def scan_genre_dir(
+    genre_dir: Path,
+    genre_path: List[str],
+    library_root_name: str,
+    display_root: Path,
+    log_lines: List[str],
+    track_id_counter: int,
+) -> tuple[List[PlaylistEntry], List[TrackEntry], int]:
+    """
+    Recursively process a genre folder.
+
+    - energy subfolders (high/mid/low) become playlists for this genre level
+    - non-energy subfolders are treated as sub-genre folders and recurse
+    - files directly inside the genre folder are skipped with a log entry
+    """
+    playlists: List[PlaylistEntry] = []
+    all_tracks: List[TrackEntry] = []
+
+    for child in sorted(genre_dir.iterdir(), key=lambda p: p.name.lower()):
+        if is_hidden(child):
+            kind = "folder" if child.is_dir() else "file"
+            log_skip(log_lines, f"Hidden {kind}: {relative_display(display_root, child)}")
+            continue
+
+        if child.is_file():
+            if child.suffix.lower() in SUPPORTED_EXTENSIONS:
+                log_skip(
+                    log_lines,
+                    f"File outside energy folder ignored: {relative_display(display_root, child)}"
+                )
+            else:
+                log_skip(
+                    log_lines,
+                    f"Unsupported file: {relative_display(display_root, child)}"
+                )
+            continue
+
+        if not child.is_dir():
+            continue
+
+        if child.name.lower() in VALID_ENERGY_FOLDERS:
+            energy_name = child.name.lower()
+            playlist_tracks, track_id_counter = collect_tracks_from_energy_dir(
+                energy_dir=child,
+                display_root=display_root,
+                genre_path=genre_path,
+                log_lines=log_lines,
+                track_id_counter=track_id_counter,
+            )
+            if not playlist_tracks:
+                log_warn(
+                    log_lines,
+                    f"Empty folder: {relative_display(display_root, child)}"
+                )
+                continue
+
+            playlist = PlaylistEntry(
+                library_root_name=library_root_name,
+                genre_path=list(genre_path),
+                energy=energy_name,
+                tracks=playlist_tracks,
+            )
+            playlists.append(playlist)
+            all_tracks.extend(playlist_tracks)
+            log_ok(
+                log_lines,
+                f"Playlist created: {playlist.display_path} ({len(playlist.tracks)} tracks)"
+            )
+        else:
+            # Sub-genre folder — recurse
+            sub_genre_path = genre_path + [child.name]
+            sub_playlists, sub_tracks, track_id_counter = scan_genre_dir(
+                genre_dir=child,
+                genre_path=sub_genre_path,
+                library_root_name=library_root_name,
+                display_root=display_root,
+                log_lines=log_lines,
+                track_id_counter=track_id_counter,
+            )
+            playlists.extend(sub_playlists)
+            all_tracks.extend(sub_tracks)
+
+    return playlists, all_tracks, track_id_counter
+
+
 def scan_library_root(
     library_root: Path,
     display_root: Path,
@@ -266,190 +429,37 @@ def scan_library_root(
 
     log_info(log_lines, f"Scanning root: {library_root.name}")
 
-    # Check for invalid root-level energy folders
     for child in sorted(library_root.iterdir(), key=lambda p: p.name.lower()):
         if is_hidden(child):
-            if child.is_dir():
-                log_skip(log_lines, f"Hidden folder: {child.name}")
+            kind = "folder" if child.is_dir() else "file"
+            log_skip(log_lines, f"Hidden {kind}: {child.name}")
+            continue
+
+        if child.is_file():
+            if child.suffix.lower() in SUPPORTED_EXTENSIONS:
+                log_skip(log_lines, f"File outside energy folder ignored: {child.name}")
             else:
-                log_skip(log_lines, f"Hidden file: {child.name}")
+                log_skip(log_lines, f"Unsupported file at root ignored: {child.name}")
             continue
 
-        if child.is_dir() and child.name.lower() in VALID_ENERGY_FOLDERS:
-            log_warn(
-                log_lines,
-                f"Invalid root-level energy folder ignored: {child.name}"
-            )
-
-    # Process only root-level genre folders
-    for genre_dir in sorted(library_root.iterdir(), key=lambda p: p.name.lower()):
-        if is_hidden(genre_dir):
+        if not child.is_dir():
             continue
 
-        if genre_dir.is_file():
-            if genre_dir.suffix.lower() in SUPPORTED_EXTENSIONS:
-                log_skip(
-                    log_lines,
-                    f"File outside energy folder ignored: {genre_dir.name}"
-                )
-            else:
-                log_skip(
-                    log_lines,
-                    f"Unsupported file at root ignored: {genre_dir.name}"
-                )
+        if child.name.lower() in VALID_ENERGY_FOLDERS:
+            log_warn(log_lines, f"Invalid root-level energy folder ignored: {child.name}")
             continue
 
-        if not genre_dir.is_dir():
-            continue
-
-        if genre_dir.name.lower() in VALID_ENERGY_FOLDERS:
-            # Already warned above
-            continue
-
-        genre_name = genre_dir.name
-
-        # Warn for supported files directly inside genre folder
-        for genre_child in sorted(genre_dir.iterdir(), key=lambda p: p.name.lower()):
-            if is_hidden(genre_child):
-                if genre_child.is_file():
-                    log_skip(
-                        log_lines,
-                        f"Hidden file: {relative_display(display_root, genre_child)}"
-                    )
-                elif genre_child.is_dir():
-                    log_skip(
-                        log_lines,
-                        f"Hidden folder: {relative_display(display_root, genre_child)}"
-                    )
-                continue
-
-            if genre_child.is_file():
-                if genre_child.suffix.lower() in SUPPORTED_EXTENSIONS:
-                    log_skip(
-                        log_lines,
-                        f"File outside energy folder ignored: {relative_display(display_root, genre_child)}"
-                    )
-                else:
-                    log_skip(
-                        log_lines,
-                        f"Unsupported file: {relative_display(display_root, genre_child)}"
-                    )
-
-        # Only process high/mid/low if they exist
-        for energy_name in ("high", "mid", "low"):
-            energy_dir = genre_dir / energy_name
-            if not energy_dir.exists():
-                continue
-
-            if is_hidden(energy_dir):
-                log_skip(
-                    log_lines,
-                    f"Hidden folder: {relative_display(display_root, energy_dir)}"
-                )
-                continue
-
-            if not energy_dir.is_dir():
-                log_warn(
-                    log_lines,
-                    f"Expected folder but found non-folder: {relative_display(display_root, energy_dir)}"
-                )
-                continue
-
-            playlist_tracks: List[TrackEntry] = []
-
-            for item in sorted(energy_dir.iterdir(), key=lambda p: p.name.lower()):
-                if is_hidden(item):
-                    if item.is_file():
-                        log_skip(
-                            log_lines,
-                            f"Hidden file: {relative_display(display_root, item)}"
-                        )
-                    elif item.is_dir():
-                        log_skip(
-                            log_lines,
-                            f"Hidden folder: {relative_display(display_root, item)}"
-                        )
-                    continue
-
-                if item.is_dir():
-                    log_warn(
-                        log_lines,
-                        f"Ignored nested folder: {relative_display(display_root, item)}"
-                    )
-                    continue
-
-                if not item.is_file():
-                    continue
-
-                ext = item.suffix.lower()
-                if ext not in SUPPORTED_EXTENSIONS:
-                    log_skip(
-                        log_lines,
-                        f"Unsupported file: {relative_display(display_root, item)}"
-                    )
-                    continue
-
-                track = TrackEntry(
-                    track_id=track_id_counter,
-                    name=item.stem,
-                    location=path_to_file_url(item),
-                    absolute_path=item.resolve(),
-                    size=item.stat().st_size,
-                    kind=item.suffix.lower().lstrip("."),
-                    artist="",
-                    composer="",
-                    album="",
-                    grouping="",
-                    genre=genre_name,
-                    total_time="0",
-                    disc_number="0",
-                    track_number="0",
-                    year="0",
-                    average_bpm="0",
-                    date_added=build_date_added(item),
-                    bit_rate="0",
-                    sample_rate="0",
-                    comments="",
-                    play_count="0",
-                    rating="0",
-                    remixer="",
-                    tonality="",
-                    label="",
-                    mix="",
-                )
-                track_id_counter += 1
-
-                playlist_tracks.append(track)
-                all_tracks.append(track)
-
-            if not playlist_tracks:
-                log_warn(
-                    log_lines,
-                    f"Empty folder: {genre_name}/{energy_name}"
-                )
-                continue
-
-            playlist = PlaylistEntry(
-                library_root_name=library_root.name,
-                genre=genre_name,
-                energy=energy_name,
-                tracks=playlist_tracks,
-            )
-            playlists.append(playlist)
-            log_ok(
-                log_lines,
-                f"Playlist created: {playlist.display_path} ({len(playlist.tracks)} tracks)"
-            )
-
-        # Warn about unexpected subfolders inside genre
-        for genre_child in sorted(genre_dir.iterdir(), key=lambda p: p.name.lower()):
-            if is_hidden(genre_child):
-                continue
-            if genre_child.is_dir() and genre_child.name.lower() not in VALID_ENERGY_FOLDERS:
-                log_warn(
-                    log_lines,
-                    f"Unexpected folder inside genre ignored: {relative_display(display_root, genre_child)}"
-                )
+        # Top-level genre folder
+        genre_playlists, genre_tracks, track_id_counter = scan_genre_dir(
+            genre_dir=child,
+            genre_path=[child.name],
+            library_root_name=library_root.name,
+            display_root=display_root,
+            log_lines=log_lines,
+            track_id_counter=track_id_counter,
+        )
+        playlists.extend(genre_playlists)
+        all_tracks.extend(genre_tracks)
 
     return playlists, all_tracks, track_id_counter
 
@@ -514,6 +524,73 @@ def scan_music_root(root_path: Path, scan_mode: str) -> ScanResult:
 # XML generation
 # -----------------------------
 
+def _build_genre_tree(playlists: List[PlaylistEntry], parent_xml_node: ET.Element) -> None:
+    """
+    Recursively build the nested genre folder + energy playlist tree.
+
+    Each playlist carries a genre_path list (e.g. ["Techno"] or ["Techno", "Hard"]).
+    We group by the first segment, recurse with the tail, and emit energy playlists
+    at the leaf level.
+    """
+    # Separate playlists that belong at this level (single-segment genre_path)
+    # from those that belong deeper (multi-segment genre_path).
+    at_this_level: dict[str, List[PlaylistEntry]] = {}   # genre_segment -> playlists
+    for pl in playlists:
+        key = pl.genre_path[0]
+        at_this_level.setdefault(key, []).append(pl)
+
+    for genre_segment in sorted(at_this_level.keys(), key=str.lower):
+        group = at_this_level[genre_segment]
+
+        # Split into direct energy playlists and sub-genre playlists
+        direct = [p for p in group if len(p.genre_path) == 1]
+        deeper = [p for p in group if len(p.genre_path) > 1]
+
+        # Count of immediate children of this folder node
+        energy_names = sorted(
+            {p.energy for p in direct},
+            key=lambda e: ("high", "mid", "low").index(e) if e in ("high", "mid", "low") else 999
+        )
+        sub_genre_names = sorted({p.genre_path[1] for p in deeper}, key=str.lower)
+        child_count = len(energy_names) + len(sub_genre_names)
+
+        genre_node = ET.SubElement(
+            parent_xml_node,
+            "NODE",
+            Type="0",  # folder
+            Name=genre_segment,
+            Count=str(child_count),
+        )
+
+        # Emit energy playlist nodes at this genre level
+        for energy_name in energy_names:
+            energy_playlists = [p for p in direct if p.energy == energy_name]
+            all_tracks = [t for p in energy_playlists for t in p.tracks]
+            playlist_node = ET.SubElement(
+                genre_node,
+                "NODE",
+                Type="1",  # playlist
+                Name=energy_name,
+                KeyType="0",
+                Entries=str(len(all_tracks)),
+            )
+            for track in all_tracks:
+                ET.SubElement(playlist_node, "TRACK", Key=str(track.track_id))
+
+        # Recurse for sub-genre folders, stripping the first path segment
+        if deeper:
+            stripped = [
+                PlaylistEntry(
+                    library_root_name=p.library_root_name,
+                    genre_path=p.genre_path[1:],
+                    energy=p.energy,
+                    tracks=p.tracks,
+                )
+                for p in deeper
+            ]
+            _build_genre_tree(stripped, genre_node)
+
+
 def build_rekordbox_xml(scan_result: ScanResult) -> ET.Element:
     """
     Build a Rekordbox-compatible XML structure.
@@ -525,7 +602,7 @@ def build_rekordbox_xml(scan_result: ScanResult) -> ET.Element:
 
     Notes:
     - Track metadata is intentionally minimal and read-only.
-    - Playlist folders mirror Root -> Genre -> Energy.
+    - Playlist folders mirror Root -> (LibraryRoot ->) Genre[/SubGenre...] -> Energy.
     """
     root = ET.Element("DJ_PLAYLISTS", Version="1.0.0")
 
@@ -570,9 +647,9 @@ def build_rekordbox_xml(scan_result: ScanResult) -> ET.Element:
             Mix=track.mix,
         )
 
-    playlists = ET.SubElement(root, "PLAYLISTS")
+    playlists_elem = ET.SubElement(root, "PLAYLISTS")
     rekordbox_root_node = ET.SubElement(
-        playlists,
+        playlists_elem,
         "NODE",
         Type="0",  # folder
         Name="ROOT",
@@ -584,9 +661,9 @@ def build_rekordbox_xml(scan_result: ScanResult) -> ET.Element:
         Type="0",  # folder
         Name=scan_result.root_path.name,
         Count=str(
-            len({playlist.library_root_name for playlist in scan_result.playlists})
+            len({pl.library_root_name for pl in scan_result.playlists})
             if scan_result.scan_mode == "parent"
-            else len({playlist.genre for playlist in scan_result.playlists})
+            else str(len({pl.genre_path[0] for pl in scan_result.playlists}))
         ),
     )
 
@@ -594,57 +671,23 @@ def build_rekordbox_xml(scan_result: ScanResult) -> ET.Element:
         library_groups = [(scan_result.root_path.name, scan_result.playlists)]
     else:
         grouped_by_library_root: dict[str, List[PlaylistEntry]] = {}
-        for playlist in scan_result.playlists:
-            grouped_by_library_root.setdefault(playlist.library_root_name, []).append(playlist)
+        for pl in scan_result.playlists:
+            grouped_by_library_root.setdefault(pl.library_root_name, []).append(pl)
         library_groups = sorted(grouped_by_library_root.items(), key=lambda item: item[0].lower())
 
     for library_root_name, library_playlists in library_groups:
         parent_node = selected_root_node
         if scan_result.scan_mode == "parent":
+            top_genres = {pl.genre_path[0] for pl in library_playlists}
             parent_node = ET.SubElement(
                 selected_root_node,
                 "NODE",
                 Type="0",
                 Name=library_root_name,
-                Count=str(len({playlist.genre for playlist in library_playlists})),
+                Count=str(len(top_genres)),
             )
 
-        playlists_by_genre: dict[str, List[PlaylistEntry]] = {}
-        for playlist in library_playlists:
-            playlists_by_genre.setdefault(playlist.genre, []).append(playlist)
-
-        for genre_name in sorted(playlists_by_genre.keys(), key=str.lower):
-            genre_playlists = sorted(
-                playlists_by_genre[genre_name],
-                key=lambda p: ("high", "mid", "low").index(p.energy)
-                if p.energy in ("high", "mid", "low")
-                else 999
-            )
-
-            genre_node = ET.SubElement(
-                parent_node,
-                "NODE",
-                Type="0",  # folder
-                Name=genre_name,
-                Count=str(len(genre_playlists)),
-            )
-
-            for playlist in genre_playlists:
-                playlist_node = ET.SubElement(
-                    genre_node,
-                    "NODE",
-                    Type="1",  # playlist
-                    Name=playlist.energy,
-                    KeyType="0",
-                    Entries=str(len(playlist.tracks)),
-                )
-
-                for track in playlist.tracks:
-                    ET.SubElement(
-                        playlist_node,
-                        "TRACK",
-                        Key=str(track.track_id),
-                    )
+        _build_genre_tree(library_playlists, parent_node)
 
     return root
 

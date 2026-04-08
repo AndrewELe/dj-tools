@@ -13,7 +13,6 @@ Features:
 - Handles enharmonic spellings (C# / Db, etc.)
 - Skips missing/invalid keys
 - Prints summary report
-- Optional backup before write
 - Optional file renaming with Camelot + key first, and BPM only when available
 - Updates the track title tag so Camelot + key appear before the title in DJ software
 
@@ -27,17 +26,16 @@ Recommended first use:
     python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --verbose
 
 Actually write changes:
-    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --verbose
+    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --verbose
 
 Write + rename:
-    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --backup --rename --verbose
+    python camelot_converter.py "D:\\Music\\camelot_test" --dest comment --write --rename --verbose
 """
 
 from __future__ import annotations
 
 import argparse
 import re
-import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -211,7 +209,7 @@ def parse_key(raw: str) -> Optional[tuple[str, str]]:
         if orig.lower().endswith("m") and not orig.lower().endswith("maj"):
             mode = "minor"
         else:
-            mode = "minor" if suffix == "M" and len(orig) <= 3 and orig.lower().endswith("m") else "major"
+            mode = "major"
 
         note = normalize_note(note)
         return (note, mode) if note else None
@@ -704,7 +702,6 @@ def build_new_filename(
     audio: Any,
     camelot: str,
     parsed_key: tuple[str, str],
-    pattern: str,
 ) -> Path:
     key_display = format_key_display(parsed_key)
 
@@ -730,19 +727,13 @@ def build_new_filename(
         "genre": sanitize_filename_component(genre),
     }
 
-    if pattern == "{camelot} | {key} | {bpm} - {artist} - {title}":
-        new_stem = build_default_filename_stem(
-            camelot=parts["camelot"],
-            key_display=parts["key"],
-            bpm_display=parts["bpm"],
-            artist=parts["artist"],
-            title=parts["title"],
-        )
-    else:
-        new_stem = pattern.format(**parts).strip()
-        new_stem = re.sub(r"\s+\|\s+\-\s+", " - ", new_stem)   # handles empty bpm in common patterns
-        new_stem = re.sub(r"\|\s+\|", "|", new_stem)
-        new_stem = re.sub(r"\s{2,}", " ", new_stem).strip()
+    new_stem = build_default_filename_stem(
+        camelot=parts["camelot"],
+        key_display=parts["key"],
+        bpm_display=parts["bpm"],
+        artist=parts["artist"],
+        title=parts["title"],
+    )
 
     new_stem = sanitize_filename_component(new_stem)
 
@@ -764,13 +755,6 @@ def safe_rename(path: Path, new_path: Path) -> Path:
     return candidate
 
 
-def create_backup(path: Path) -> Path:
-    backup_path = path.with_suffix(path.suffix + ".bak")
-    if not backup_path.exists():
-        shutil.copy2(path, backup_path)
-    return backup_path
-
-
 def iter_audio_files(root: Path) -> Iterable[Path]:
     for path in sorted(root.rglob("*")):
         if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
@@ -783,9 +767,7 @@ def process_file(
     custom_name: Optional[str],
     source_field: Optional[str],
     write: bool,
-    backup: bool,
     rename: bool,
-    rename_pattern: str,
     verbose: bool,
     stats: Stats,
 ) -> None:
@@ -846,19 +828,13 @@ def process_file(
                     audio=audio,
                     camelot=camelot,
                     parsed_key=parsed_key,
-                    pattern=rename_pattern,
                 )
-                print(
-                    f"[DRY-RUN] {path} | source={raw_key!r} -> camelot={camelot} | "
-                    f"title={desired_title} | rename_to={preview_path.name}"
-                )
+                print(f"[DRY-RUN] {path} | source={raw_key!r} -> camelot={camelot} | title={desired_title}")
+                print(f"          OLD: {path.name}")
+                print(f"          NEW: {preview_path.name}")
             else:
                 print(f"[DRY-RUN] {path} | source={raw_key!r} -> camelot={camelot} | title={desired_title}")
             return
-
-        backup_path = None
-        if backup:
-            backup_path = create_backup(path)
 
         if existing != camelot:
             set_destination_value(audio, dest, camelot, custom_name)
@@ -876,8 +852,10 @@ def process_file(
                 audio=audio,
                 camelot=camelot,
                 parsed_key=parsed_key,
-                pattern=rename_pattern,
             )
+            print(f"[RENAME] {path}")
+            print(f"         OLD: {path.name}")
+            print(f"         NEW: {new_path.name}")
             renamed_path = safe_rename(path, new_path)
             if renamed_path != path:
                 stats.renamed += 1
@@ -949,23 +927,9 @@ def parse_args() -> argparse.Namespace:
         help="Actually write changes. Without this flag, the script runs in dry-run mode.",
     )
     parser.add_argument(
-        "--backup",
-        action="store_true",
-        help="Create a .bak backup beside each file before writing.",
-    )
-    parser.add_argument(
         "--rename",
         action="store_true",
-        help="Rename files after tag processing using a filename pattern.",
-    )
-    parser.add_argument(
-        "--rename-pattern",
-        default="{camelot} | {key} | {bpm} - {artist} - {title}",
-        help=(
-            "Filename pattern used with --rename. "
-            "Available fields: {artist}, {title}, {camelot}, {key}, {bpm}, {track}, {year}, {genre}. "
-            "When using the default pattern, BPM is automatically omitted if missing."
-        ),
+        help="Rename files after tag processing using the built-in Camelot | Musical Key | BPM - Artist - Title format.",
     )
     parser.add_argument(
         "--verbose",
@@ -1005,9 +969,7 @@ def main() -> int:
             custom_name=args.custom_name,
             source_field=source_field,
             write=args.write,
-            backup=args.backup,
             rename=args.rename,
-            rename_pattern=args.rename_pattern,
             verbose=args.verbose,
             stats=stats,
         )

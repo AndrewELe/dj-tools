@@ -132,6 +132,20 @@ Startup controls:
 - `A` = automatic mode, run through everything without pausing
 - `Q` = quit immediately
 
+Connectivity checks:
+Before source processing begins, the tool checks general internet reachability and SoundCloud reachability.
+
+If a warning appears:
+The checks are warnings, not hard stops. You can choose:
+
+- `C` = continue into crate digger anyway
+- `M` = return to the main menu
+
+What this means:
+
+- A ping warning can happen on networks that block ICMP even when downloads still work
+- A SoundCloud warning means SoundCloud sources may fail, but other sources can still work
+
 While stepping through sources:
 
 - `Enter` = run this source
@@ -145,8 +159,129 @@ What it processes:
 - Crawler seeds from `crawler.txt`
 - Discovered sources from `discovered_sources.txt`
 
+### Crate Digger File Map
+
+These are the main files you may want to edit:
+
+- `C:\dj_tools\crate-digger\sources.txt`
+  Main download list. Every non-empty line that does not start with `#` is processed as a source URL.
+- `C:\dj_tools\crate-digger\crawler.txt`
+  Extra source list that is also downloaded directly, and is also used as a seed list for discovery.
+- `C:\dj_tools\crate-digger\discover.ps1`
+  Discovery script. It reads `sources.txt` and `crawler.txt`, asks `yt-dlp` for related repost URLs, and writes the cleaned results into `discovered_sources.txt`.
+- `C:\dj_tools\crate-digger\discovered_sources.txt`
+  Auto-generated list of discovered sources created by `discover.ps1`. After discovery runs, `digcrate.bat` also downloads from this file.
+- `C:\dj_tools\crate-digger\digcrate.bat`
+  Main controller for crate digger. This is where the per-source download cap is currently set.
+- `C:\dj_tools\crate-digger\yt-dlp.conf`
+  Shared `yt-dlp` rules such as audio extraction, metadata embedding, playlist order, and the 10-minute / title filters.
+
 Important detail:
-Discovered sources are limited with `--playlist-end 5`, so only the first 5 entries of each discovered playlist/source are processed.
+The crate digger keeps the 5-track limit for normal sources and discovered sources, but `https://soundcloud.com/druleprivate/likes` is treated as a full-download source and is not capped at 5 tracks.
+
+### How To Change How Many Songs Download Per Source
+
+Right now, the number of tracks per source is controlled in:
+
+- `C:\dj_tools\crate-digger\digcrate.bat`
+- `C:\dj_tools\crate-digger\discover.ps1`
+
+What to change in `digcrate.bat`:
+
+- Find:
+  `set "PLAYLIST_ARGS=--playlist-end 5"`
+- Change `5` to the number you want for normal sources.
+
+Example:
+
+- `set "PLAYLIST_ARGS=--playlist-end 10"`
+
+What that changes:
+
+- `sources.txt` entries will download up to that many tracks
+- `crawler.txt` entries will download up to that many tracks
+- `discovered_sources.txt` entries will download up to that many tracks
+
+Special case in `digcrate.bat`:
+
+- The URL `https://soundcloud.com/druleprivate/likes` is defined as:
+  `set "FULL_DOWNLOAD_URL=https://soundcloud.com/druleprivate/likes"`
+- That one source ignores the per-source cap because the batch file clears `PLAYLIST_ARGS` for it.
+
+If you want that source capped too:
+
+- Edit `C:\dj_tools\crate-digger\digcrate.bat`
+- In the `:GET_PLAYLIST_ARGS` section, remove or change these lines:
+  `if /I "%TARGET_URL%"=="%FULL_DOWNLOAD_URL%" set "PLAYLIST_ARGS="`
+  `if /I "%TARGET_URL%"=="%FULL_DOWNLOAD_URL%/" set "PLAYLIST_ARGS="`
+
+What to change in `discover.ps1`:
+
+- Find:
+  `--playlist-end 5`
+- Change `5` to the same number you want discovery to inspect per seed source.
+
+Why this second edit matters:
+
+- `discover.ps1` only inspects the first 5 items from each seed source when building `discovered_sources.txt`
+- If you raise the limit in `digcrate.bat` but not in `discover.ps1`, discovery still only looks at 5 items per seed
+
+Recommendation:
+
+- Keep the number the same in both files unless you specifically want different behavior for discovery vs downloads
+
+### How To Add Or Delete Sources
+
+To add or remove your normal source list:
+
+- Edit `C:\dj_tools\crate-digger\sources.txt`
+- Put one source URL on each line
+- Blank lines are ignored
+- Lines starting with `#` are treated as comments
+
+Example:
+
+```txt
+# Main sources
+https://soundcloud.com/examplelabel
+https://soundcloud.com/exampledj/likes
+```
+
+To add or remove crawler seed sources:
+
+- Edit `C:\dj_tools\crate-digger\crawler.txt`
+- Use the same one-URL-per-line format
+
+What `crawler.txt` does differently:
+
+- Its URLs are downloaded directly during the crate digger run
+- Those same URLs are also fed into `discover.ps1` as discovery seeds
+
+To remove a source:
+
+- Delete its line from `sources.txt` or `crawler.txt`
+- Or put `#` at the start of the line to disable it without deleting it
+
+Example:
+
+```txt
+# https://soundcloud.com/exampledj/likes
+```
+
+About `discovered_sources.txt`:
+
+- This file is rebuilt by `discover.ps1`
+- You usually should not treat it as your master source list
+- If you want to stop seeing a discovered source long-term, remove or change the parent sources in `sources.txt` and `crawler.txt`, or adjust the discovery logic in `discover.ps1`
+
+Download root:
+Before downloads start, the script now checks that the music output root exists and is writable.
+
+Default output root:
+`C:\Music\SoundCloud`
+
+Optional override:
+Set the environment variable `DJTOOLS_MUSIC_ROOT` before launching if you want downloads and dedupe to use a different writable folder.
 
 At the end:
 It asks:
@@ -219,21 +354,6 @@ What this means:
 Recommended first run:
 Use preview mode first.
 
-### Backup Options
-
-These only appear if you chose `W`.
-
-Prompt:
-`Create .bak backup files before writing? (Y/N, default Y)`
-
-Meaning:
-
-- `Y` or Enter = make a backup copy before editing each file
-- `N` = do not create backups
-
-Important:
-Backups are now kept until you remove them yourself with Menu Option 6.
-
 ### Rename Option
 
 Prompt:
@@ -257,10 +377,12 @@ When you write changes, the title tag is also updated to:
 Example:
 `9A | Em - Sunday Sunrise`
 
-Custom rename pattern prompt:
-`Optional custom filename pattern (press Enter to use the format above)`
+Rename preview:
+In both preview mode and write mode, the tool shows the current filename and the built-in target filename before the rename happens.
 
-Use this only if you already know exactly how you want your filenames formatted.
+Example:
+- `OLD: Artist - Title.mp3`
+- `NEW: 8A | Am | 128 - Artist - Title.mp3`
 
 ### Verbose Output
 
@@ -289,7 +411,6 @@ Safer first-time recommendation:
 
 1. Run in preview mode first
 2. If the results look good, run again with `W`
-3. Keep backups on for the first write pass
 
 ## Menu Option 5: Camelot To Comments
 
@@ -314,7 +435,6 @@ What it asks for:
 - Root music folder
 - Optional key source tag override
 - Preview or write mode
-- Backup creation
 - Verbose output
 - Show Camelot map
 
@@ -329,7 +449,7 @@ Best use case:
 Use this when you want a clean, Rekordbox-friendly comment format without changing filenames.
 
 Safer first-time recommendation:
-Run a preview first, then run again with write enabled and backups on.
+Run a preview first, then run again with write enabled if the output looks correct.
 
 ## Menu Option 6: Clean `.bak` Files
 
@@ -410,8 +530,6 @@ Closes the menu.
 1. Use Option 4 or 5
 2. Run a preview first
 3. If the output looks correct, run again with write enabled
-4. Leave backups on during the first real write
-5. Use Option 6 later if you want to remove backup files
 
 ### For Pulling New Music
 
@@ -431,7 +549,6 @@ Closes the menu.
 ## Tips
 
 - If you are unsure, choose preview mode before writing or deleting anything
-- Keep `.bak` backups on during first-time testing
 - Paste full folder paths when prompted
 - If a tool says a path does not exist, check for typo, quotes, or a missing drive letter
 

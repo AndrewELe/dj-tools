@@ -36,7 +36,7 @@ def prompt_for_target(default_target: Path) -> Path:
 def main() -> int:
     args = parse_args()
     default_target = Path(__file__).resolve().parent
-    target = args.target if "target" in args and args.target != default_target else prompt_for_target(default_target)
+    target = args.target if args.target != default_target else prompt_for_target(default_target)
     target = target.resolve()
 
     if not target.exists():

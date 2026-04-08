@@ -24,7 +24,6 @@ Features:
 - Converts standard musical keys to Camelot notation
 - Pulls BPM from metadata when available
 - Dry-run by default
-- Optional backup before write
 - Updates the track title tag so Camelot + key appear before the title in DJ software
 - Skips missing/invalid keys
 - Prints summary report
@@ -33,17 +32,16 @@ Recommended first use:
     python camelot_to_comments.py "D:\\Music\\camelot_test" --verbose
 
 Actually write changes:
-    python camelot_to_comments.py "D:\\Music\\camelot_test" --write --backup --verbose
+    python camelot_to_comments.py "D:\\Music\\camelot_test" --write --verbose
 
 Write comments + title tag:
-    python camelot_to_comments.py "D:\\Music\\camelot_test" --write --backup --verbose
+    python camelot_to_comments.py "D:\\Music\\camelot_test" --write --verbose
 """
 
 from __future__ import annotations
 
 import argparse
 import re
-import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -599,13 +597,6 @@ def build_comment_value(camelot: str, key_display: str, bpm_display: str) -> str
     return f"{camelot} | {key_display}"
 
 
-def create_backup(path: Path) -> Path:
-    backup_path = path.with_suffix(path.suffix + ".bak")
-    if not backup_path.exists():
-        shutil.copy2(path, backup_path)
-    return backup_path
-
-
 def iter_audio_files(root: Path) -> Iterable[Path]:
     for path in sorted(root.rglob("*")):
         if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS:
@@ -616,7 +607,6 @@ def process_file(
     path: Path,
     source_field: Optional[str],
     write: bool,
-    backup: bool,
     verbose: bool,
     stats: Stats,
 ) -> None:
@@ -675,9 +665,6 @@ def process_file(
             stats.would_write += 1
             print(f"[DRY-RUN] {path} | source={raw_key!r} -> comment={comment_value} | title={title_value}")
             return
-
-        if backup:
-            create_backup(path)
 
         set_comment(audio, comment_value)
         if existing_title != title_value:
@@ -738,11 +725,6 @@ def parse_args() -> argparse.Namespace:
         help="Actually write changes. Without this flag, the script runs in dry-run mode.",
     )
     parser.add_argument(
-        "--backup",
-        action="store_true",
-        help="Create a .bak backup beside each file before writing.",
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print skip reasons and unchanged files too.",
@@ -774,7 +756,6 @@ def main() -> int:
             path=path,
             source_field=source_field,
             write=args.write,
-            backup=args.backup,
             verbose=args.verbose,
             stats=stats,
         )

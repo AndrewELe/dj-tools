@@ -69,12 +69,14 @@ Write-Host ""
 Write-Host "[DISCOVER] Cleaning discovered sources..."
 
 if (Test-Path $tempFile) {
-    Get-Content $tempFile |
+    $cleanedUrls = Get-Content $tempFile |
         Where-Object { $_ -and $_ -notmatch "^NA" } |
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ -match '^https?://' } |
-        Sort-Object -Unique |
-        Set-Content -Encoding UTF8 $finalFile
+        Sort-Object -Unique
+
+    $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+    [System.IO.File]::WriteAllLines($finalFile, $cleanedUrls, $utf8NoBom)
 }
 
 $finalCount = 0
