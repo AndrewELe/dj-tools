@@ -765,4 +765,15 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        print("\nCancelled by user.")
+        raise SystemExit(130)
+    except SystemExit:
+        raise
+    except Exception as exc:
+        print(f"\n[ERROR] camelot_to_comments failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        raise SystemExit(1)

@@ -373,4 +373,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nCancelled by user.")
+        sys.exit(130)
+    except Exception as exc:
+        print(f"\n[ERROR] clean_empty_music_folders failed: {type(exc).__name__}: {exc}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

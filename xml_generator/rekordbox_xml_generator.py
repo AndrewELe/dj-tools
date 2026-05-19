@@ -50,7 +50,6 @@ Supported audio formats:
 
 from __future__ import annotations
 
-import os
 import platform
 import re
 import sys
@@ -191,7 +190,7 @@ def prompt_for_scan_mode() -> str | None:
 
 def prompt_for_root_folder() -> Path | None:
     while True:
-        user_input = input("Enter the folder path (or 'q' to quit): ").strip()
+        user_input = input("Enter the folder path (or 'q' to quit): ").strip().strip('"').strip("'")
 
         if user_input.lower() == "q":
             return None
@@ -766,4 +765,13 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print("\nCancelled by user.")
+        sys.exit(130)
+    except Exception as exc:
+        print(f"\n[ERROR] Rekordbox XML generator failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

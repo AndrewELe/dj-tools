@@ -15,22 +15,20 @@ echo 2. Clean / mark empty folders
 echo 3. Run crate digger
 echo 4. Camelot converter
 echo 5. Camelot to comments
-echo 6. Clean .bak files
-echo 7. Rekordbox XML generator
-echo 8. Exit
+echo 6. Rekordbox XML generator
+echo 7. Exit
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Choose an option (1-8): "
+set /p "CHOICE=Choose an option (1-7): "
 
 if "%CHOICE%"=="1" goto build
 if "%CHOICE%"=="2" goto clean
 if "%CHOICE%"=="3" goto digcrate
 if "%CHOICE%"=="4" goto camelot_converter
 if "%CHOICE%"=="5" goto camelot_comments
-if "%CHOICE%"=="6" goto bak_cleaner
-if "%CHOICE%"=="7" goto rekordbox_xml
-if "%CHOICE%"=="8" goto end
+if "%CHOICE%"=="6" goto rekordbox_xml
+if "%CHOICE%"=="7" goto end
 
 echo.
 echo Invalid choice.
@@ -58,6 +56,7 @@ set "PARENT_PATH=%PARENT_PATH:"=%"
 
 echo.
 py "%ROOT_DIR%\create_folders\make_music_paths.py" "%PARENT_PATH%"
+call :report_exit "Build crate tree" %ERRORLEVEL%
 goto return_to_menu
 
 :clean
@@ -81,6 +80,7 @@ set "TARGET_PATH=%TARGET_PATH:"=%"
 
 echo.
 py "%ROOT_DIR%\create_folders\clean_empty_music_folders.py" "%TARGET_PATH%"
+call :report_exit "Clean folders" %ERRORLEVEL%
 goto return_to_menu
 
 :digcrate
@@ -90,6 +90,7 @@ echo Crate Digger
 echo ==========================================
 echo.
 call "%ROOT_DIR%\crate-digger\digcrate.bat"
+call :report_exit "Crate digger" %ERRORLEVEL%
 goto menu
 
 :camelot_converter
@@ -169,6 +170,7 @@ if /I "%SHOW_MAP_CHOICE%"=="Y" set "SHOW_MAP_ARG=--show-map"
 
 echo.
 call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_converter.py" "%MUSIC_FOLDER%" !DEST_ARG! !CUSTOM_NAME_ARG! !SOURCE_FIELD_ARG! !WRITE_ARGS! !RENAME_ARGS! !VERBOSE_ARG! !SHOW_MAP_ARG!
+call :report_exit "Camelot converter" %ERRORLEVEL%
 goto return_to_menu
 
 :camelot_comments
@@ -220,18 +222,7 @@ if /I "%SHOW_MAP_CHOICE%"=="Y" set "SHOW_MAP_ARG=--show-map"
 
 echo.
 call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_to_comments.py" "%MUSIC_FOLDER%" !SOURCE_FIELD_ARG! !WRITE_ARGS! !VERBOSE_ARG! !SHOW_MAP_ARG!
-goto return_to_menu
-
-:bak_cleaner
-cls
-echo ==========================================
-echo Clean .bak Files
-echo ==========================================
-echo.
-echo This launches the backup cleaner.
-echo The cleaner will prompt for the folder path to scan recursively.
-echo.
-call :run_musickey "%ROOT_DIR%\musicKeyConversion\bakCleaner.py"
+call :report_exit "Camelot to comments" %ERRORLEVEL%
 goto return_to_menu
 
 :rekordbox_xml
@@ -244,6 +235,7 @@ echo This tool scans a Root/Genre/Energy/tracks folder structure
 echo and creates a Rekordbox-compatible XML plus a matching log file.
 echo.
 call :run_python "%ROOT_DIR%\xml_generator\rekordbox_xml_generator.py"
+call :report_exit "Rekordbox XML generator" %ERRORLEVEL%
 goto return_to_menu
 
 :run_musickey
@@ -252,11 +244,19 @@ if exist "%ROOT_DIR%\musicKeyConversion\.venv\Scripts\python.exe" (
 ) else (
     py %*
 )
-exit /b
+exit /b %ERRORLEVEL%
 
 :run_python
 py %*
-exit /b
+exit /b %ERRORLEVEL%
+
+:report_exit
+if not "%~2"=="0" (
+    echo.
+    echo [WARN] %~1 exited with code %~2.
+    echo        Scroll up to see any error messages above.
+)
+exit /b 0
 
 :return_to_menu
 echo.
