@@ -144,61 +144,39 @@ if "%MUSIC_FOLDER%"=="" (
 
 set "MUSIC_FOLDER=%MUSIC_FOLDER:"=%"
 set "DEST_ARG=--dest comment"
-set "CUSTOM_NAME_ARG="
-set "SOURCE_FIELD_ARG="
 set "WRITE_ARGS="
 set "RENAME_ARGS="
 set "VERBOSE_ARG="
-set "SHOW_MAP_ARG="
 set "DEST_CHOICE="
-set "CUSTOM_NAME="
-set "SOURCE_FIELD="
 set "WRITE_CHOICE="
 set "RENAME_CHOICE="
 set "VERBOSE_CHOICE="
-set "SHOW_MAP_CHOICE="
 
 echo.
 echo Where should the Camelot value be saved?
 echo   1. Comment tag ^(best default for most users^)
 echo   2. Grouping tag
-echo   3. Custom tag name
+echo   3. Custom CAMELOT tag
 set /p "DEST_CHOICE=Choose where to save it (1-3, default 1): "
 
 if "%DEST_CHOICE%"=="2" set "DEST_ARG=--dest grouping"
-if "%DEST_CHOICE%"=="3" (
-    set "DEST_ARG=--dest custom"
-    set /p "CUSTOM_NAME=Enter the custom tag name (press Enter for CAMELOT): "
-    if not "%CUSTOM_NAME%"=="" set "CUSTOM_NAME_ARG=--custom-name ""%CUSTOM_NAME%"""
-)
-
-echo.
-echo Leave the next prompt blank unless your music key is stored in a specific tag
-echo such as TKEY, INITIALKEY, or KEY.
-set /p "SOURCE_FIELD=Key source tag override (press Enter to auto-detect): "
-if not "%SOURCE_FIELD%"=="" set "SOURCE_FIELD_ARG=--source-field ""%SOURCE_FIELD%"""
+if "%DEST_CHOICE%"=="3" set "DEST_ARG=--dest custom"
 
 echo.
 set /p "WRITE_CHOICE=Press Enter for a safe preview only, or type W to actually write tag changes: "
 if /I "%WRITE_CHOICE%"=="W" set "WRITE_ARGS=--write"
 
 echo.
-echo Filename rename format:
-echo   Camelot ^| Musical Key ^| BPM - Artist - Title
-echo BPM is skipped automatically if it is missing.
-echo The track title tag is also updated to:
-echo   Camelot ^| Musical Key - Title
-set /p "RENAME_CHOICE=Also rename the files using that format? (Y/N, default N): "
+echo Filename rename format: Camelot ^| Key ^| BPM - Artist - Title
+echo The track title tag is also updated to: Camelot ^| Key - Title
+set /p "RENAME_CHOICE=Also rename the files? (Y/N, default N): "
 if /I "%RENAME_CHOICE%"=="Y" set "RENAME_ARGS=--rename"
 
-set /p "VERBOSE_CHOICE=Show detailed output while processing? (Y/N, default Y): "
-if /I not "%VERBOSE_CHOICE%"=="N" set "VERBOSE_ARG=--verbose"
-
-set /p "SHOW_MAP_CHOICE=Show the Camelot key map before processing? (Y/N, default N): "
-if /I "%SHOW_MAP_CHOICE%"=="Y" set "SHOW_MAP_ARG=--show-map"
+set /p "VERBOSE_CHOICE=Show detailed output? (Y/N, default Y): "
+if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verbose")
 
 echo.
-call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_converter.py" "%MUSIC_FOLDER%" !DEST_ARG! !CUSTOM_NAME_ARG! !SOURCE_FIELD_ARG! !WRITE_ARGS! !RENAME_ARGS! !VERBOSE_ARG! !SHOW_MAP_ARG!
+call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_converter.py" "%MUSIC_FOLDER%" !DEST_ARG! !WRITE_ARGS! !RENAME_ARGS! !VERBOSE_ARG!
 call :report_exit "Camelot converter" %ERRORLEVEL%
 goto return_to_menu
 
@@ -225,32 +203,20 @@ if "%MUSIC_FOLDER%"=="" (
 )
 
 set "MUSIC_FOLDER=%MUSIC_FOLDER:"=%"
-set "SOURCE_FIELD_ARG="
 set "WRITE_ARGS="
 set "VERBOSE_ARG="
-set "SHOW_MAP_ARG="
-set "SOURCE_FIELD="
 set "WRITE_CHOICE="
 set "VERBOSE_CHOICE="
-set "SHOW_MAP_CHOICE="
-
-echo Leave the next prompt blank unless your music key is stored in a specific tag
-echo such as TKEY, INITIALKEY, or KEY.
-set /p "SOURCE_FIELD=Key source tag override (press Enter to auto-detect): "
-if not "%SOURCE_FIELD%"=="" set "SOURCE_FIELD_ARG=--source-field ""%SOURCE_FIELD%"""
 
 echo.
 set /p "WRITE_CHOICE=Press Enter for a safe preview only, or type W to actually write comment tags: "
 if /I "%WRITE_CHOICE%"=="W" set "WRITE_ARGS=--write"
 
-set /p "VERBOSE_CHOICE=Show detailed output while processing? (Y/N, default Y): "
-if /I not "%VERBOSE_CHOICE%"=="N" set "VERBOSE_ARG=--verbose"
-
-set /p "SHOW_MAP_CHOICE=Show the Camelot key map before processing? (Y/N, default N): "
-if /I "%SHOW_MAP_CHOICE%"=="Y" set "SHOW_MAP_ARG=--show-map"
+set /p "VERBOSE_CHOICE=Show detailed output? (Y/N, default Y): "
+if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verbose")
 
 echo.
-call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_to_comments.py" "%MUSIC_FOLDER%" !SOURCE_FIELD_ARG! !WRITE_ARGS! !VERBOSE_ARG! !SHOW_MAP_ARG!
+call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_to_comments.py" "%MUSIC_FOLDER%" !WRITE_ARGS! !VERBOSE_ARG!
 call :report_exit "Camelot to comments" %ERRORLEVEL%
 goto return_to_menu
 
