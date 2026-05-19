@@ -5,6 +5,19 @@ Main launcher:
 
 Run that file, then choose a number from the menu.
 
+The menu now has 8 options:
+
+1. Build new dated crate tree
+2. Clean / mark empty folders
+3. Run crate digger
+4. Dedupe audio (find duplicate MP3s)
+5. Camelot converter
+6. Camelot to comments
+7. Rekordbox XML generator
+8. Exit
+
+You can press `Q` at any prompt to return to the main menu without making changes.
+
 ## Most Common Tasks
 
 ### 1. Make a New Crate Folder
@@ -35,7 +48,7 @@ Enter:
 The crate folder you want to clean.
 
 When asked:
-`Delete empty folders? (y/n)`
+`Delete empty folders? (y/n, or Q to return to menu)`
 
 Pick:
 
@@ -54,27 +67,30 @@ At startup:
 
 - Press `Enter` to step through sources one by one
 - Type `A` to run everything automatically
-- Type `Q` to quit
+- Type `Q` to return to the main menu
 
 Before downloads begin:
 
 - The tool checks general internet reachability
 - The tool checks SoundCloud reachability
-- If either check warns, you can type `C` to continue anyway or `M` to return to the main menu
+- If either check warns, you can type `C` to continue anyway, `M` to return to the main menu, or `Q` to return to the main menu
 - The tool verifies that the download root exists and is writable before yt-dlp starts
 
 Default download root:
 `C:\Music\SoundCloud`
 
 Optional override:
-Set `DJTOOLS_MUSIC_ROOT` first if you want crate digger and dedupe to use another writable folder
+Set `DJTOOLS_MUSIC_ROOT` first if you want crate digger and dedupe to use another writable folder.
 
 While stepping:
 
 - `Enter` = run this source
 - `S` = skip this source
 - `A` = auto-run the rest
-- `Q` = quit
+- `Q` = return to the main menu
+
+Stopping a long auto-run:
+After each source finishes, you have a 2-second window to press `Q`. A `Q` pressed at any point during the download is also picked up at the next check. The current download always finishes, then you return to the main menu.
 
 Where to edit crate digger behavior:
 
@@ -110,13 +126,30 @@ How to add or remove sources:
 - Blank lines are ignored
 - Start a line with `#` if you want to disable a source without deleting it
 
-Recommended:
-Use step mode if you want more control.
-
-## 4. Convert Music Keys to Camelot
+## 4. Dedupe Downloaded MP3s
 
 Choose:
-`4. Camelot converter`
+`4. Dedupe audio (find duplicate MP3s)`
+
+Enter:
+The folder you want scanned recursively.
+
+What it does:
+
+- Fingerprints every `.mp3` under that folder
+- Keeps the first copy in place
+- Moves every other matching copy into a `_dupes` subfolder at the root you chose
+
+What it does not do:
+It never deletes anything. Review `_dupes` and remove files manually if you want them gone.
+
+Use this when:
+You just finished a crate digger run, or any time you want to identify duplicate MP3s in a folder tree.
+
+## 5. Convert Music Keys to Camelot
+
+Choose:
+`5. Camelot converter`
 
 Use this when:
 You want to convert key tags to Camelot, update the track title, and optionally rename files.
@@ -124,17 +157,13 @@ You want to convert key tags to Camelot, update the track title, and optionally 
 Safest first run:
 
 1. Enter your music folder
-2. Leave destination on default unless you need something else
-3. Leave key source blank unless auto-detect is failing
-4. Press `Enter` for preview mode
+2. Leave destination on default (1 = comment tag)
+3. Press `Enter` for preview mode
+4. Press `Enter` to skip renaming (default N)
 5. Leave verbose on
 
 If the preview looks right:
 Run it again and type `W` to write changes.
-
-Recommended write settings:
-
-- Rename files: `N` unless you really want renamed filenames
 
 Rename format shown by the tool:
 `Camelot | Musical Key | BPM - Artist - Title`
@@ -145,10 +174,10 @@ Important behavior:
 - The title tag is updated to `Camelot | Musical Key - Title`
 - When renaming is on, the tool previews the current filename and new filename before or during processing
 
-## 5. Write Camelot Info Into Comments
+## 6. Write Camelot Info Into Comments
 
 Choose:
-`5. Camelot to comments`
+`6. Camelot to comments`
 
 Use this when:
 You want comments like:
@@ -160,26 +189,11 @@ This also updates the track title to:
 Safest first run:
 
 1. Enter your music folder
-2. Leave key source blank unless needed
-3. Press `Enter` for preview mode
-4. Leave verbose on
+2. Press `Enter` for preview mode
+3. Leave verbose on
 
 If the preview looks right:
 Run it again with `W` to write changes.
-
-## 6. Delete `.bak` Backup Files
-
-Choose:
-`6. Clean .bak files`
-
-Then:
-Enter the folder path you want scanned recursively.
-
-If you just press Enter:
-It defaults to `C:\dj_tools\musicKeyConversion`
-
-Use this when:
-You are sure you no longer need the `.bak` backup files.
 
 ## 7. Generate Rekordbox XML
 
@@ -191,6 +205,7 @@ You want to turn a folder tree like `Root / Genre / high|mid|low / tracks` into 
 
 What it does:
 
+- Asks whether you have a single sorted folder or a parent containing multiple sorted folders
 - Prompts for your music root folder
 - Scans the folder tree
 - Creates a revisioned XML file in that root folder
@@ -199,10 +214,11 @@ What it does:
 Typical workflow:
 
 1. Run Option `7`
-2. Enter your music root folder
-3. Let it generate the XML
-4. Point Rekordbox to that XML in Preferences
-5. Import the playlists inside Rekordbox
+2. Pick scan mode `1` or `2`
+3. Enter your music root folder
+4. Let it generate the XML
+5. Point Rekordbox to that XML in Preferences
+6. Import the playlists inside Rekordbox
 
 ## Safe Defaults
 
@@ -210,6 +226,7 @@ If you are unsure:
 
 - Preview before writing
 - Use step mode in crate digger if you want control
+- Press `Q` at any prompt to bail out without making changes
 
 ## Which Tool Should I Use?
 
@@ -219,11 +236,11 @@ Use `2` if you want to clean empty folders after sorting.
 
 Use `3` if you want to pull music from your crate-digger sources.
 
-Use `4` if you want Camelot written to tags and maybe filenames.
+Use `4` if you want to find and isolate duplicate MP3s.
 
-Use `5` if you want Camelot plus key plus BPM written to comments only.
+Use `5` if you want Camelot written to tags and maybe filenames.
 
-Use `6` if you want leftover `.bak` files removed.
+Use `6` if you want Camelot plus key plus BPM written to comments only.
 
 Use `7` if you want a Rekordbox XML generated from your folder structure.
 
