@@ -8,19 +8,12 @@ function Write-Err($msg) {
     Write-Host "ERROR: $msg" -ForegroundColor Red
 }
 
-function Pause-OnExit {
-    if ($Host.Name -eq "ConsoleHost") {
-        Read-Host "Press ENTER to close"
-    }
-}
-
 try {
     $base = $PSScriptRoot
     $fpcalc = Join-Path $base "fpcalc.exe"
 
     if (-not (Test-Path -LiteralPath $fpcalc)) {
         Write-Err "fpcalc.exe not found at $fpcalc"
-        Pause-OnExit
         exit 1
     }
 
@@ -40,7 +33,6 @@ try {
 
     if (-not (Test-Path -LiteralPath $MusicRoot)) {
         Write-Err "music root not found: $MusicRoot"
-        Pause-OnExit
         exit 1
     }
 
@@ -78,7 +70,6 @@ try {
         Write-Host "No MP3 files found under $MusicRoot. Nothing to dedupe." -ForegroundColor Yellow
         Write-Host ""
         Write-Host "=== AUDIO DEDUPE END ==="
-        Pause-OnExit
         exit 0
     }
 
@@ -152,12 +143,10 @@ try {
     Write-Host "Skipped: $skippedCount"
     Write-Host "Errors: $errorCount"
     Write-Host ""
-    Pause-OnExit
     exit 0
 }
 catch {
     Write-Err "Unhandled failure: $($_.Exception.Message)"
     Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray
-    Pause-OnExit
     exit 1
 }

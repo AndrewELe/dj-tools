@@ -13,22 +13,24 @@ echo.
 echo 1. Build new dated crate tree
 echo 2. Clean / mark empty folders
 echo 3. Run crate digger
-echo 4. Camelot converter
-echo 5. Camelot to comments
-echo 6. Rekordbox XML generator
-echo 7. Exit
+echo 4. Dedupe audio (find duplicate MP3s)
+echo 5. Camelot converter
+echo 6. Camelot to comments
+echo 7. Rekordbox XML generator
+echo 8. Exit
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Choose an option (1-7): "
+set /p "CHOICE=Choose an option (1-8): "
 
 if "%CHOICE%"=="1" goto build
 if "%CHOICE%"=="2" goto clean
 if "%CHOICE%"=="3" goto digcrate
-if "%CHOICE%"=="4" goto camelot_converter
-if "%CHOICE%"=="5" goto camelot_comments
-if "%CHOICE%"=="6" goto rekordbox_xml
-if "%CHOICE%"=="7" goto end
+if "%CHOICE%"=="4" goto dedupe_audio
+if "%CHOICE%"=="5" goto camelot_converter
+if "%CHOICE%"=="6" goto camelot_comments
+if "%CHOICE%"=="7" goto rekordbox_xml
+if "%CHOICE%"=="8" goto end
 
 echo.
 echo Invalid choice.
@@ -92,6 +94,33 @@ echo.
 call "%ROOT_DIR%\crate-digger\digcrate.bat"
 call :report_exit "Crate digger" %ERRORLEVEL%
 goto menu
+
+:dedupe_audio
+cls
+echo ==========================================
+echo Dedupe Audio
+echo ==========================================
+echo.
+echo Recursively fingerprints every .mp3 under the folder you provide
+echo and moves duplicates into a _dupes subfolder next to your music.
+echo.
+
+set "DEDUPE_PATH="
+set /p "DEDUPE_PATH=Enter the folder path to scan recursively: "
+
+if "%DEDUPE_PATH%"=="" (
+    echo.
+    echo No path entered.
+    pause
+    goto menu
+)
+
+set "DEDUPE_PATH=%DEDUPE_PATH:"=%"
+
+echo.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\crate-digger\dedupe_audio.ps1" "%DEDUPE_PATH%"
+call :report_exit "Dedupe audio" %ERRORLEVEL%
+goto return_to_menu
 
 :camelot_converter
 cls

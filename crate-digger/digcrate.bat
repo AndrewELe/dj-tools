@@ -247,15 +247,8 @@ echo.
 echo Started at: %STARTTIME%
 echo Finished at: %TIME%
 echo.
-
-if exist "%DEDUPE_PS1%" (
-    set /p "RUNDEDUPE=Run audio dedupe now? (Y/N): "
-    if /I "%RUNDEDUPE%"=="Y" (
-        echo.
-        echo Running audio dedupe...
-        powershell -NoProfile -ExecutionPolicy Bypass -File "%DEDUPE_PS1%" "%DOWNLOAD_ROOT%"
-    )
-)
+echo To dedupe duplicate MP3s, use option 4 in the main DJ Tools menu.
+echo.
 
 :CLEAN_EXIT
 set /p "EXITPROMPT=Press ENTER to exit: "
