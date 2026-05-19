@@ -19,7 +19,11 @@ try {
 
     if ([string]::IsNullOrWhiteSpace($MusicRoot)) {
         $defaultRoot = "C:\Music\SoundCloud"
-        $inputRoot = Read-Host "Enter music root path or press ENTER for default [$defaultRoot]"
+        $inputRoot = Read-Host "Enter music root path, press ENTER for default [$defaultRoot], or Q to return to menu"
+        if ($inputRoot -and $inputRoot.Trim().ToLower() -eq "q") {
+            Write-Host "Returning to menu."
+            exit 0
+        }
         if ([string]::IsNullOrWhiteSpace($inputRoot)) {
             $MusicRoot = $defaultRoot
         }

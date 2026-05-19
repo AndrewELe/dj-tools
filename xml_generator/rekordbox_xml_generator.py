@@ -173,7 +173,7 @@ def prompt_for_scan_mode() -> str | None:
         print("   Example: sorted 3.25.26")
         print("2) Parent folder containing multiple sorted folders")
         print("   Example: sorted/")
-        user_input = input("Enter 1 or 2 (or 'q' to quit): ").strip().lower()
+        user_input = input("Enter 1 or 2 (or Q to return to menu): ").strip().lower()
 
         if user_input == "q":
             return None
@@ -190,7 +190,7 @@ def prompt_for_scan_mode() -> str | None:
 
 def prompt_for_root_folder() -> Path | None:
     while True:
-        user_input = input("Enter the folder path (or 'q' to quit): ").strip().strip('"').strip("'")
+        user_input = input("Enter the folder path (or Q to return to menu): ").strip().strip('"').strip("'")
 
         if user_input.lower() == "q":
             return None

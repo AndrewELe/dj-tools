@@ -318,9 +318,13 @@ def main() -> None:
     if len(sys.argv) > 1:
         root_input = sys.argv[1]
     else:
-        root_input = input("Enter folder to clean: ")
+        root_input = input("Enter folder to clean (or Q to return to menu): ")
 
     root_input = normalize_input_path(root_input)
+
+    if root_input.lower() == "q":
+        print("Returning to menu.")
+        return
 
     if not root_input:
         print("No path provided.")
@@ -336,7 +340,10 @@ def main() -> None:
         print(f"Not a folder: {root}")
         sys.exit(1)
 
-    choice = input("\nDelete empty folders? (y/n): ").strip().lower()
+    choice = input("\nDelete empty folders? (y/n, or Q to return to menu): ").strip().lower()
+    if choice == "q":
+        print("Returning to menu.")
+        return
     delete_mode = choice == "y"
 
     if delete_mode:
@@ -350,7 +357,10 @@ def main() -> None:
     if not actions:
         print("\nNothing to do for folders.")
     else:
-        confirm = input("\nProceed with these folder changes? (y/n): ").strip().lower()
+        confirm = input("\nProceed with these folder changes? (y/n, or Q to return to menu): ").strip().lower()
+        if confirm == "q":
+            print("Returning to menu.")
+            return
         if confirm == "y":
             print("\nApplying changes...\n")
             results = apply_actions(actions)
@@ -363,7 +373,10 @@ def main() -> None:
         else:
             print("\nCancelled folder changes. No folder changes were made.")
 
-    prune_choice = input("\nCreate a pruned notables file with only genres that have music? (y/n): ").strip().lower()
+    prune_choice = input("\nCreate a pruned notables file with only genres that have music? (y/n, or Q to return to menu): ").strip().lower()
+    if prune_choice == "q":
+        print("Returning to menu.")
+        return
     if prune_choice == "y":
         parent_of_crate = root.parent
         prune_notables_file(parent_of_crate, root)

@@ -21,8 +21,9 @@ echo 8. Exit
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Choose an option (1-8): "
+set /p "CHOICE=Choose an option (1-8, or Q to quit): "
 
+if /I "%CHOICE%"=="q" goto end
 if "%CHOICE%"=="1" goto build
 if "%CHOICE%"=="2" goto clean
 if "%CHOICE%"=="3" goto digcrate
@@ -45,8 +46,9 @@ echo ==========================================
 echo.
 
 set "PARENT_PATH="
-set /p "PARENT_PATH=Enter the parent folder path (example: D:\): "
+set /p "PARENT_PATH=Enter the parent folder path (example: D:\), or Q to return to menu: "
 
+if /I "%PARENT_PATH%"=="q" goto menu
 if "%PARENT_PATH%"=="" (
     echo.
     echo No path entered.
@@ -69,8 +71,9 @@ echo ==========================================
 echo.
 
 set "TARGET_PATH="
-set /p "TARGET_PATH=Enter the folder to clean: "
+set /p "TARGET_PATH=Enter the folder to clean, or Q to return to menu: "
 
+if /I "%TARGET_PATH%"=="q" goto menu
 if "%TARGET_PATH%"=="" (
     echo.
     echo No path entered.
@@ -106,8 +109,9 @@ echo and moves duplicates into a _dupes subfolder next to your music.
 echo.
 
 set "DEDUPE_PATH="
-set /p "DEDUPE_PATH=Enter the folder path to scan recursively: "
+set /p "DEDUPE_PATH=Enter the folder path to scan recursively, or Q to return to menu: "
 
+if /I "%DEDUPE_PATH%"=="q" goto menu
 if "%DEDUPE_PATH%"=="" (
     echo.
     echo No path entered.
@@ -133,8 +137,9 @@ echo and can save that value into a tag, update the track title, and optionally 
 echo.
 
 set "MUSIC_FOLDER="
-set /p "MUSIC_FOLDER=Enter the root music folder to scan: "
+set /p "MUSIC_FOLDER=Enter the root music folder to scan, or Q to return to menu: "
 
+if /I "%MUSIC_FOLDER%"=="q" goto menu
 if "%MUSIC_FOLDER%"=="" (
     echo.
     echo No folder entered.
@@ -157,22 +162,26 @@ echo Where should the Camelot value be saved?
 echo   1. Comment tag ^(best default for most users^)
 echo   2. Grouping tag
 echo   3. Custom CAMELOT tag
-set /p "DEST_CHOICE=Choose where to save it (1-3, default 1): "
+set /p "DEST_CHOICE=Choose where to save it (1-3, default 1, or Q to return to menu): "
+if /I "%DEST_CHOICE%"=="q" goto menu
 
 if "%DEST_CHOICE%"=="2" set "DEST_ARG=--dest grouping"
 if "%DEST_CHOICE%"=="3" set "DEST_ARG=--dest custom"
 
 echo.
-set /p "WRITE_CHOICE=Press Enter for a safe preview only, or type W to actually write tag changes: "
+set /p "WRITE_CHOICE=Press Enter for a safe preview only, type W to write, or Q to return to menu: "
+if /I "%WRITE_CHOICE%"=="q" goto menu
 if /I "%WRITE_CHOICE%"=="W" set "WRITE_ARGS=--write"
 
 echo.
 echo Filename rename format: Camelot ^| Key ^| BPM - Artist - Title
 echo The track title tag is also updated to: Camelot ^| Key - Title
-set /p "RENAME_CHOICE=Also rename the files? (Y/N, default N): "
+set /p "RENAME_CHOICE=Also rename the files? (Y/N, default N, or Q to return to menu): "
+if /I "%RENAME_CHOICE%"=="q" goto menu
 if /I "%RENAME_CHOICE%"=="Y" set "RENAME_ARGS=--rename"
 
-set /p "VERBOSE_CHOICE=Show detailed output? (Y/N, default Y): "
+set /p "VERBOSE_CHOICE=Show detailed output? (Y/N, default Y, or Q to return to menu): "
+if /I "%VERBOSE_CHOICE%"=="q" goto menu
 if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verbose")
 
 echo.
@@ -193,8 +202,9 @@ echo File names stay unchanged unless you use the other converter tool.
 echo.
 
 set "MUSIC_FOLDER="
-set /p "MUSIC_FOLDER=Enter the root music folder to scan: "
+set /p "MUSIC_FOLDER=Enter the root music folder to scan, or Q to return to menu: "
 
+if /I "%MUSIC_FOLDER%"=="q" goto menu
 if "%MUSIC_FOLDER%"=="" (
     echo.
     echo No folder entered.
@@ -209,10 +219,12 @@ set "WRITE_CHOICE="
 set "VERBOSE_CHOICE="
 
 echo.
-set /p "WRITE_CHOICE=Press Enter for a safe preview only, or type W to actually write comment tags: "
+set /p "WRITE_CHOICE=Press Enter for a safe preview only, type W to write, or Q to return to menu: "
+if /I "%WRITE_CHOICE%"=="q" goto menu
 if /I "%WRITE_CHOICE%"=="W" set "WRITE_ARGS=--write"
 
-set /p "VERBOSE_CHOICE=Show detailed output? (Y/N, default Y): "
+set /p "VERBOSE_CHOICE=Show detailed output? (Y/N, default Y, or Q to return to menu): "
+if /I "%VERBOSE_CHOICE%"=="q" goto menu
 if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verbose")
 
 echo.

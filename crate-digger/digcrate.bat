@@ -30,11 +30,12 @@ echo.
 echo Controls at startup:
 echo   ENTER = step through each source
 echo   S     = skip current source
-echo   A     = run everything automatically
-echo   Q     = quit now
+echo   A     = run everything automatically (you can press Q during a download
+echo           to stop after the current source finishes)
+echo   Q     = return to main menu now
 echo.
 
-set /p "USERINPUT=Press ENTER, A, or Q: "
+set /p "USERINPUT=Press ENTER, A, or Q to return to main menu: "
 if /I "%USERINPUT%"=="A" set "MODE=AUTO"
 if /I "%USERINPUT%"=="Q" goto END
 
@@ -144,7 +145,7 @@ if /I "%MODE%"=="STEP" (
     echo ----------------------------------------
     echo %LABEL%: %URL%
     echo ----------------------------------------
-    set /p "STEPINPUT=ENTER = continue, S = skip, A = auto-run rest, Q = quit: "
+    set /p "STEPINPUT=ENTER = continue, S = skip, A = auto-run rest, Q = return to main menu: "
     if /I "%STEPINPUT%"=="A" set "MODE=AUTO"
     if /I "%STEPINPUT%"=="Q" exit /b 1
     if /I "%STEPINPUT%"=="S" exit /b 0
@@ -155,6 +156,8 @@ echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%"
 "%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+call :CHECK_QUIT
+if errorlevel 1 exit /b 1
 exit /b 0
 
 :RUN_DISCOVERED
@@ -165,7 +168,7 @@ if /I "%MODE%"=="STEP" (
     echo ----------------------------------------
     echo %LABEL%: %URL%
     echo ----------------------------------------
-    set /p "STEPINPUT=ENTER = continue, S = skip, A = auto-run rest, Q = quit: "
+    set /p "STEPINPUT=ENTER = continue, S = skip, A = auto-run rest, Q = return to main menu: "
     if /I "%STEPINPUT%"=="A" set "MODE=AUTO"
     if /I "%STEPINPUT%"=="Q" exit /b 1
     if /I "%STEPINPUT%"=="S" exit /b 0
@@ -176,6 +179,22 @@ echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%"
 "%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+call :CHECK_QUIT
+if errorlevel 1 exit /b 1
+exit /b 0
+
+:CHECK_QUIT
+rem In AUTO mode, give the user a brief window to press Q after each download.
+rem Any Q queued during the download (via the cmd keyboard buffer) is also caught.
+if /I not "%MODE%"=="AUTO" exit /b 0
+echo.
+choice /T 2 /D N /C QN /M "Press Q to stop after this source (continuing in 2s)"
+if errorlevel 2 exit /b 0
+if errorlevel 1 (
+    echo.
+    echo [USER] Q detected. Returning to main menu after this source.
+    exit /b 1
+)
 exit /b 0
 
 :GET_PLAYLIST_ARGS
@@ -234,8 +253,9 @@ echo.
 echo One or more connectivity checks raised warnings.
 echo   C = continue into crate digger anyway
 echo   M = return to the main menu
-set /p "WARN_CHOICE=Choose C or M (default C): "
+set /p "WARN_CHOICE=Choose C, M, or Q to return to main menu (default C): "
 if /I "%WARN_CHOICE%"=="M" goto EXIT_NOW
+if /I "%WARN_CHOICE%"=="Q" goto EXIT_NOW
 exit /b 0
 
 :END

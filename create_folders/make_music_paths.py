@@ -171,9 +171,13 @@ def main() -> None:
     if len(sys.argv) > 1:
         parent_input = sys.argv[1]
     else:
-        parent_input = input("Enter the parent folder path: ")
+        parent_input = input("Enter the parent folder path (or Q to return to menu): ")
 
     parent_input = normalize_input_path(parent_input)
+
+    if parent_input.lower() == "q":
+        print("Returning to menu.")
+        return
 
     if not parent_input:
         print("Error: no parent folder path entered.")
