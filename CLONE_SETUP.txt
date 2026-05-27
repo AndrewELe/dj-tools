@@ -85,15 +85,15 @@ What they mean:
 - If the venv path returns `False`, create the virtual environment using the commands above.
 
 
-If crate digger does not run
-----------------------------
+If crate digger, dedupe, or WAV->MP3 do not run
+-----------------------------------------------
 
-Menu option `3` (Run crate digger) and option `4` (Dedupe audio) depend on files inside `crate-digger`.
+Menu options `3`, `4`, and `7` all rely on files inside `crate-digger\`.
 
 Check that these exist:
 
 - `crate-digger\yt-dlp.exe`        (option 3)
-- `crate-digger\ffmpeg.exe`        (option 3)
+- `crate-digger\ffmpeg.exe`        (option 3, option 7 — WAV to MP3 encoder)
 - `crate-digger\ffprobe.exe`       (option 3)
 - `crate-digger\fpcalc.exe`        (option 4 — dedupe fingerprinting)
 - `crate-digger\sources.txt`       (option 3)
@@ -103,6 +103,10 @@ Check that these exist:
 - `crate-digger\dedupe_audio.ps1`  (option 4)
 
 If any of those are missing, the relevant menu option will not work until they are restored.
+
+Option `7` (WAV to MP3) requires that the bundled `ffmpeg.exe` was built with the `libmp3lame` encoder. The shipped one is. If you replace it, verify with:
+
+`.\crate-digger\ffmpeg.exe -hide_banner -encoders | findstr libmp3lame`
 
 
 Clean start commands
@@ -127,6 +131,7 @@ Notes
 - The menu prefers `musicKeyConversion\.venv\Scripts\python.exe` if it exists.
 - If that venv does not exist, the menu falls back to `py`.
 - Options `5` (Camelot converter) and `6` (Camelot to comments) depend on the `mutagen` Python package.
-- Options `1`, `2`, and `7` are also Python-based but only need stdlib.
+- Options `1`, `2`, `7`, and `8` are also Python-based but only need stdlib.
 - Option `3` (Crate digger) uses the executables and text files in `crate-digger`.
 - Option `4` (Dedupe audio) is PowerShell-based and needs `crate-digger\fpcalc.exe` and `crate-digger\dedupe_audio.ps1`.
+- Option `7` (WAV to MP3) shells out to `crate-digger\ffmpeg.exe` for libmp3lame encoding.

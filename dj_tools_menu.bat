@@ -16,12 +16,13 @@ echo 3. Run crate digger
 echo 4. Dedupe audio (find duplicate MP3s)
 echo 5. Camelot converter
 echo 6. Camelot to comments
-echo 7. Rekordbox XML generator
-echo 8. Exit
+echo 7. Encode WAV to MP3 (single file)
+echo 8. Rekordbox XML generator
+echo 9. Exit
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Choose an option (1-8, or Q to quit): "
+set /p "CHOICE=Choose an option (1-9, or Q to quit): "
 
 if /I "%CHOICE%"=="q" goto end
 if "%CHOICE%"=="1" goto build
@@ -30,8 +31,9 @@ if "%CHOICE%"=="3" goto digcrate
 if "%CHOICE%"=="4" goto dedupe_audio
 if "%CHOICE%"=="5" goto camelot_converter
 if "%CHOICE%"=="6" goto camelot_comments
-if "%CHOICE%"=="7" goto rekordbox_xml
-if "%CHOICE%"=="8" goto end
+if "%CHOICE%"=="7" goto wav_to_mp3
+if "%CHOICE%"=="8" goto rekordbox_xml
+if "%CHOICE%"=="9" goto end
 
 echo.
 echo Invalid choice.
@@ -230,6 +232,35 @@ if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verb
 echo.
 call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_to_comments.py" "%MUSIC_FOLDER%" !WRITE_ARGS! !VERBOSE_ARG!
 call :report_exit "Camelot to comments" %ERRORLEVEL%
+goto return_to_menu
+
+:wav_to_mp3
+cls
+echo ==========================================
+echo Encode WAV to MP3 (single file)
+echo ==========================================
+echo.
+echo Encodes one .wav file to .mp3 using LAME V0 VBR.
+echo V0 is the best quality/size trade-off: practically transparent
+echo audio at roughly 25-30%% smaller than 320 CBR.
+echo.
+
+set "WAV_FILE="
+set /p "WAV_FILE=Enter the .wav file path, or Q to return to menu: "
+
+if /I "%WAV_FILE%"=="q" goto menu
+if "%WAV_FILE%"=="" (
+    echo.
+    echo No file entered.
+    pause
+    goto menu
+)
+
+set "WAV_FILE=%WAV_FILE:"=%"
+
+echo.
+call :run_python "%ROOT_DIR%\encoder\wav_to_mp3.py" "%WAV_FILE%"
+call :report_exit "WAV to MP3" %ERRORLEVEL%
 goto return_to_menu
 
 :rekordbox_xml

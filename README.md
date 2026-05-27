@@ -18,8 +18,9 @@ The menu currently includes:
 4. Dedupe audio (find duplicate MP3s)
 5. Camelot converter
 6. Camelot to comments
-7. Rekordbox XML generator
-8. Exit
+7. Encode WAV to MP3 (single file)
+8. Rekordbox XML generator
+9. Exit
 
 ## Basic Usage
 
@@ -477,7 +478,44 @@ Use this when you want a clean, Rekordbox-friendly comment format without changi
 Safer first-time recommendation:
 Run a preview first, then run again with write enabled if the output looks correct.
 
-## Menu Option 7: Rekordbox XML Generator
+## Menu Option 7: Encode WAV to MP3
+
+Purpose:
+Encodes a single `.wav` file to `.mp3` using LAME V0 VBR.
+
+Why V0 VBR:
+V0 is the standard "best quality / smallest size" preset for MP3. It produces practically transparent audio while typically being 25-30% smaller than 320 CBR. Bitrate varies between roughly 220 and 260 kbps depending on the complexity of the audio at each moment.
+
+Trade-off note:
+"High bitrate" and "small file" are the same dial — they cannot both be maximized. V0 picks the best practical balance for DJ use.
+
+What it asks for:
+`Enter the .wav file path, or Q to return to menu`
+
+What you should enter:
+The full path to one `.wav` file.
+
+What it does:
+
+- Encodes that single file to `.mp3` using `ffmpeg -codec:a libmp3lame -q:a 0`
+- Saves the `.mp3` next to the original `.wav` with the same base name
+- If a matching `.mp3` already exists, appends ` (2)`, ` (3)`, etc. so nothing is overwritten
+- Copies WAV metadata into the MP3 when present
+- Keeps the original `.wav` file untouched
+
+What it prints when done:
+
+- The original WAV path and size
+- The new MP3 path and size
+- The size savings percentage
+
+What it uses:
+The bundled `crate-digger\ffmpeg.exe`. If that's missing, it falls back to any `ffmpeg` on your PATH.
+
+Good time to use this:
+When you have a single high-quality `.wav` (for example, exported from a stem editor or DAW) and want a small DJ-ready `.mp3` from it.
+
+## Menu Option 8: Rekordbox XML Generator
 
 Purpose:
 Scans a structured music folder and creates a Rekordbox-compatible XML file plus a matching log file.
@@ -504,7 +542,7 @@ When you want to generate playlist XML from your folder tree, point Rekordbox to
 Important note:
 This tool is read-only against your music files. It does not rename, move, or modify audio files.
 
-## Menu Option 8: Exit
+## Menu Option 9: Exit
 
 Purpose:
 Closes the menu. You can also press `Q` at the main menu prompt instead.
@@ -532,11 +570,17 @@ Closes the menu. You can also press `Q` at the main menu prompt instead.
 
 ### For Rekordbox XML Playlist Import
 
-1. Use Option 7
+1. Use Option 8
 2. Enter the root folder that contains your genre folders
 3. Let the tool generate the XML and log in that same root folder
 4. Point Rekordbox to the generated XML in Preferences
 5. Import playlists from the XML inside Rekordbox
+
+### For Quick WAV → MP3 Conversion
+
+1. Use Option 7
+2. Enter the path to a single `.wav` file
+3. The encoded `.mp3` lands next to the original; the WAV is preserved
 
 ## Tips
 

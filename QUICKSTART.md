@@ -5,7 +5,7 @@ Main launcher:
 
 Run that file, then choose a number from the menu.
 
-The menu now has 8 options:
+The menu now has 9 options:
 
 1. Build new dated crate tree
 2. Clean / mark empty folders
@@ -13,8 +13,9 @@ The menu now has 8 options:
 4. Dedupe audio (find duplicate MP3s)
 5. Camelot converter
 6. Camelot to comments
-7. Rekordbox XML generator
-8. Exit
+7. Encode WAV to MP3 (single file)
+8. Rekordbox XML generator
+9. Exit
 
 You can press `Q` at any prompt to return to the main menu without making changes.
 
@@ -195,10 +196,28 @@ Safest first run:
 If the preview looks right:
 Run it again with `W` to write changes.
 
-## 7. Generate Rekordbox XML
+## 7. Convert a Single WAV to MP3
 
 Choose:
-`7. Rekordbox XML generator`
+`7. Encode WAV to MP3 (single file)`
+
+Enter:
+The full path to one `.wav` file (e.g. `D:\Renders\track.wav`).
+
+What it does:
+
+- Encodes that file to `.mp3` using LAME V0 VBR (best quality/size for DJ use)
+- Saves the new `.mp3` next to the original with the same base name
+- Keeps the original `.wav` untouched
+- Prints the before/after sizes and savings percentage
+
+Why V0 VBR:
+Practically transparent audio, typically 25-30% smaller than 320 CBR. "Highest bitrate" and "smallest file" are the same setting — you can't maximize both — so V0 is the practical sweet spot.
+
+## 8. Generate Rekordbox XML
+
+Choose:
+`8. Rekordbox XML generator`
 
 Use this when:
 You want to turn a folder tree like `Root / Genre / high|mid|low / tracks` into a Rekordbox-importable XML playlist structure.
@@ -242,7 +261,9 @@ Use `5` if you want Camelot written to tags and maybe filenames.
 
 Use `6` if you want Camelot plus key plus BPM written to comments only.
 
-Use `7` if you want a Rekordbox XML generated from your folder structure.
+Use `7` if you want to convert a single `.wav` file to `.mp3`.
+
+Use `8` if you want a Rekordbox XML generated from your folder structure.
 
 ## Need More Detail?
 
