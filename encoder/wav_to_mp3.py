@@ -70,7 +70,7 @@ def encode_wav_to_mp3(wav_path: Path, ffmpeg_path: Path) -> Path:
     cmd = [
         str(ffmpeg_path),
         "-hide_banner",
-        "-loglevel", "warning",
+        "-stats",
         "-i", str(wav_path),
         "-codec:a", "libmp3lame",
         "-q:a", "0",
@@ -79,7 +79,10 @@ def encode_wav_to_mp3(wav_path: Path, ffmpeg_path: Path) -> Path:
     ]
 
     print(f"[ENCODE] {wav_path.name} -> {mp3_path.name}")
+    print("         Encoding (this may take a minute for large files)...")
+    print()
     result = subprocess.run(cmd)
+    print()
 
     if result.returncode != 0:
         if mp3_path.exists():

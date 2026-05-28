@@ -50,18 +50,18 @@ echo.
 set "PARENT_PATH="
 set /p "PARENT_PATH=Enter the parent folder path (example: D:\), or Q to return to menu: "
 
-if /I "%PARENT_PATH%"=="q" goto menu
-if "%PARENT_PATH%"=="" (
+if defined PARENT_PATH set "PARENT_PATH=!PARENT_PATH:"=!"
+
+if /I "!PARENT_PATH!"=="q" goto menu
+if not defined PARENT_PATH (
     echo.
     echo No path entered.
     pause
     goto menu
 )
 
-set "PARENT_PATH=%PARENT_PATH:"=%"
-
 echo.
-py "%ROOT_DIR%\create_folders\make_music_paths.py" "%PARENT_PATH%"
+py "%ROOT_DIR%\create_folders\make_music_paths.py" "!PARENT_PATH!"
 call :report_exit "Build crate tree" %ERRORLEVEL%
 goto return_to_menu
 
@@ -75,18 +75,18 @@ echo.
 set "TARGET_PATH="
 set /p "TARGET_PATH=Enter the folder to clean, or Q to return to menu: "
 
-if /I "%TARGET_PATH%"=="q" goto menu
-if "%TARGET_PATH%"=="" (
+if defined TARGET_PATH set "TARGET_PATH=!TARGET_PATH:"=!"
+
+if /I "!TARGET_PATH!"=="q" goto menu
+if not defined TARGET_PATH (
     echo.
     echo No path entered.
     pause
     goto menu
 )
 
-set "TARGET_PATH=%TARGET_PATH:"=%"
-
 echo.
-py "%ROOT_DIR%\create_folders\clean_empty_music_folders.py" "%TARGET_PATH%"
+py "%ROOT_DIR%\create_folders\clean_empty_music_folders.py" "!TARGET_PATH!"
 call :report_exit "Clean folders" %ERRORLEVEL%
 goto return_to_menu
 
@@ -113,18 +113,18 @@ echo.
 set "DEDUPE_PATH="
 set /p "DEDUPE_PATH=Enter the folder path to scan recursively, or Q to return to menu: "
 
-if /I "%DEDUPE_PATH%"=="q" goto menu
-if "%DEDUPE_PATH%"=="" (
+if defined DEDUPE_PATH set "DEDUPE_PATH=!DEDUPE_PATH:"=!"
+
+if /I "!DEDUPE_PATH!"=="q" goto menu
+if not defined DEDUPE_PATH (
     echo.
     echo No path entered.
     pause
     goto menu
 )
 
-set "DEDUPE_PATH=%DEDUPE_PATH:"=%"
-
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\crate-digger\dedupe_audio.ps1" "%DEDUPE_PATH%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\crate-digger\dedupe_audio.ps1" "!DEDUPE_PATH!"
 call :report_exit "Dedupe audio" %ERRORLEVEL%
 goto return_to_menu
 
@@ -141,15 +141,16 @@ echo.
 set "MUSIC_FOLDER="
 set /p "MUSIC_FOLDER=Enter the root music folder to scan, or Q to return to menu: "
 
-if /I "%MUSIC_FOLDER%"=="q" goto menu
-if "%MUSIC_FOLDER%"=="" (
+if defined MUSIC_FOLDER set "MUSIC_FOLDER=!MUSIC_FOLDER:"=!"
+
+if /I "!MUSIC_FOLDER!"=="q" goto menu
+if not defined MUSIC_FOLDER (
     echo.
     echo No folder entered.
     pause
     goto menu
 )
 
-set "MUSIC_FOLDER=%MUSIC_FOLDER:"=%"
 set "DEST_ARG=--dest comment"
 set "WRITE_ARGS="
 set "RENAME_ARGS="
@@ -187,7 +188,7 @@ if /I "%VERBOSE_CHOICE%"=="q" goto menu
 if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verbose")
 
 echo.
-call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_converter.py" "%MUSIC_FOLDER%" !DEST_ARG! !WRITE_ARGS! !RENAME_ARGS! !VERBOSE_ARG!
+call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_converter.py" "!MUSIC_FOLDER!" !DEST_ARG! !WRITE_ARGS! !RENAME_ARGS! !VERBOSE_ARG!
 call :report_exit "Camelot converter" %ERRORLEVEL%
 goto return_to_menu
 
@@ -206,15 +207,16 @@ echo.
 set "MUSIC_FOLDER="
 set /p "MUSIC_FOLDER=Enter the root music folder to scan, or Q to return to menu: "
 
-if /I "%MUSIC_FOLDER%"=="q" goto menu
-if "%MUSIC_FOLDER%"=="" (
+if defined MUSIC_FOLDER set "MUSIC_FOLDER=!MUSIC_FOLDER:"=!"
+
+if /I "!MUSIC_FOLDER!"=="q" goto menu
+if not defined MUSIC_FOLDER (
     echo.
     echo No folder entered.
     pause
     goto menu
 )
 
-set "MUSIC_FOLDER=%MUSIC_FOLDER:"=%"
 set "WRITE_ARGS="
 set "VERBOSE_ARG="
 set "WRITE_CHOICE="
@@ -230,7 +232,7 @@ if /I "%VERBOSE_CHOICE%"=="q" goto menu
 if /I "%VERBOSE_CHOICE%"=="N" (set "VERBOSE_ARG=") else (set "VERBOSE_ARG=--verbose")
 
 echo.
-call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_to_comments.py" "%MUSIC_FOLDER%" !WRITE_ARGS! !VERBOSE_ARG!
+call :run_musickey "%ROOT_DIR%\musicKeyConversion\camelot_to_comments.py" "!MUSIC_FOLDER!" !WRITE_ARGS! !VERBOSE_ARG!
 call :report_exit "Camelot to comments" %ERRORLEVEL%
 goto return_to_menu
 
@@ -248,18 +250,20 @@ echo.
 set "WAV_FILE="
 set /p "WAV_FILE=Enter the .wav file path, or Q to return to menu: "
 
-if /I "%WAV_FILE%"=="q" goto menu
-if "%WAV_FILE%"=="" (
+rem Strip surrounding quotes BEFORE comparing or passing the value on,
+rem because cmd's if-comparison breaks on embedded literal quotes.
+if defined WAV_FILE set "WAV_FILE=!WAV_FILE:"=!"
+
+if /I "!WAV_FILE!"=="q" goto menu
+if not defined WAV_FILE (
     echo.
     echo No file entered.
     pause
     goto menu
 )
 
-set "WAV_FILE=%WAV_FILE:"=%"
-
 echo.
-call :run_python "%ROOT_DIR%\encoder\wav_to_mp3.py" "%WAV_FILE%"
+call :run_python "%ROOT_DIR%\encoder\wav_to_mp3.py" "!WAV_FILE!"
 call :report_exit "WAV to MP3" %ERRORLEVEL%
 goto return_to_menu
 
