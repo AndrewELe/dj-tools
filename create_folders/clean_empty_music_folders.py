@@ -277,13 +277,25 @@ def genre_folder_has_music(crate_root: Path, section_name: str) -> bool:
     return contains_music(folder)
 
 
+def _read_text_robust(path: Path) -> str:
+    """Read text trying UTF-8 first, falling back to cp1252 for files that
+    were saved in the Windows default codepage (common when edited in Notepad)."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        try:
+            return path.read_text(encoding="cp1252")
+        except UnicodeDecodeError:
+            return path.read_text(encoding="utf-8", errors="replace")
+
+
 def prune_notables_file(parent_of_crate: Path, crate_root: Path) -> Optional[Path]:
     source_file = find_notables_file(parent_of_crate)
     if source_file is None:
         print("\nNo notables file found. Skipping notables prune.")
         return None
 
-    text = source_file.read_text(encoding="utf-8")
+    text = _read_text_robust(source_file)
     lines = text.splitlines()
 
     header, sections = split_notables_sections(lines)

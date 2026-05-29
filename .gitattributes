@@ -1,0 +1,6 @@
+# Force CRLF for Windows scripts so cmd.exe's `call :label` works reliably.
+# Without this, edits made from non-Windows tooling can strip the CR chars
+# and break label lookup in dj_tools_menu.bat etc.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
