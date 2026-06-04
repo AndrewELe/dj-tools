@@ -74,6 +74,8 @@ if not exist "%YTDLPCONF%" (
 call :PREPARE_OUTPUT_ROOT
 if errorlevel 1 goto END
 
+call :UPDATE_YTDLP_IF_STALE
+
 echo Checking main sources...
 echo.
 
@@ -155,7 +157,7 @@ echo ----------------------------------------
 echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%"
-"%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+"%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
 call :CHECK_QUIT
 if errorlevel 1 exit /b 1
 exit /b 0
@@ -178,7 +180,7 @@ echo ----------------------------------------
 echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%"
-"%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+"%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
 call :CHECK_QUIT
 if errorlevel 1 exit /b 1
 exit /b 0
@@ -223,6 +225,29 @@ if errorlevel 1 (
 )
 del "%WRITE_TEST_FILE%" >nul 2>&1
 echo [OK] Download root is ready: %DOWNLOAD_ROOT%
+exit /b 0
+
+:CHECK_UPDATE_STAMP
+rem Returns errorlevel 0 if stamp is fresh (less than 7 days old),
+rem errorlevel 1 if the stamp is missing or older than 7 days.
+set "STAMP_FILE=%SCRIPT_DIR%\.last_update_check"
+if not exist "%STAMP_FILE%" exit /b 1
+powershell -NoProfile -Command "if (((Get-Date) - (Get-Item '%STAMP_FILE%').LastWriteTime).TotalDays -ge 7) { exit 1 } else { exit 0 }"
+exit /b %ERRORLEVEL%
+
+:UPDATE_YTDLP_IF_STALE
+rem Runs `yt-dlp -U` at most once per week. Refreshes the stamp
+rem afterwards even on failure so a broken update server doesn't make
+rem us retry every single run.
+call :CHECK_UPDATE_STAMP
+if not errorlevel 1 exit /b 0
+echo.
+echo ----------------------------------------
+echo Checking for yt-dlp updates ^(weekly^)...
+echo ----------------------------------------
+"%YTDLP%" -U
+echo. > "%SCRIPT_DIR%\.last_update_check"
+echo.
 exit /b 0
 
 :CHECK_INTERNET

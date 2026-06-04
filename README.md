@@ -20,7 +20,8 @@ The menu currently includes:
 6. Camelot to comments
 7. Encode WAV to MP3 (single file)
 8. Rekordbox XML generator
-9. Exit
+9. Update command-line tools
+10. Exit
 
 ## Basic Usage
 
@@ -515,6 +516,14 @@ The bundled `crate-digger\ffmpeg.exe`. If that's missing, it falls back to any `
 Good time to use this:
 When you have a single high-quality `.wav` (for example, exported from a stem editor or DAW) and want a small DJ-ready `.mp3` from it.
 
+### Automatic yt-dlp updates
+
+Crate digger automatically checks for newer `yt-dlp.exe` releases at most once per week. On the first run of each week, it runs `yt-dlp -U` before processing sources and writes a small `.last_update_check` stamp into `crate-digger\` to avoid checking again until the stamp is 7+ days old.
+
+If the update fails (no internet, GitHub down), the stamp is still touched so the broken check doesn't repeat every run; you'll just stay on the current version until next week's check. The `--no-update` flag is also passed to every per-source `yt-dlp` invocation so the staleness warning never appears during normal use.
+
+To force an update before the weekly window, use Menu Option 9 (Update command-line tools).
+
 ## Menu Option 8: Rekordbox XML Generator
 
 Purpose:
@@ -542,7 +551,24 @@ When you want to generate playlist XML from your folder tree, point Rekordbox to
 Important note:
 This tool is read-only against your music files. It does not rename, move, or modify audio files.
 
-## Menu Option 9: Exit
+## Menu Option 9: Update Command-Line Tools
+
+Purpose:
+Forces a check for updates to the command-line tools the menu depends on, on demand. Useful when you've just hit a "version is older than..." warning, or before a big crate-digger session.
+
+What it updates:
+
+- `yt-dlp.exe` — runs `yt-dlp -U` against the bundled binary in `crate-digger\`
+- `mutagen` — runs `pip install --upgrade mutagen` inside the `musicKeyConversion\.venv` if it exists, otherwise against the system `py`
+
+What it does NOT update:
+
+- `ffmpeg.exe` / `ffprobe.exe` / `fpcalc.exe` — these are static binaries without a built-in self-updater. To update them, replace the files in `crate-digger\` with newer downloads from the official sources.
+
+Side effect:
+After a successful yt-dlp update, the weekly auto-update stamp (`crate-digger\.last_update_check`) is refreshed so crate digger doesn't immediately re-run an update you just did.
+
+## Menu Option 10: Exit
 
 Purpose:
 Closes the menu. You can also press `Q` at the main menu prompt instead.

@@ -18,11 +18,12 @@ echo 5. Camelot converter
 echo 6. Camelot to comments
 echo 7. Encode WAV to MP3 (single file)
 echo 8. Rekordbox XML generator
-echo 9. Exit
+echo 9. Update command-line tools
+echo 10. Exit
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Choose an option (1-9, or Q to quit): "
+set /p "CHOICE=Choose an option (1-10, or Q to quit): "
 
 if /I "%CHOICE%"=="q" goto end
 if "%CHOICE%"=="1" goto build
@@ -33,7 +34,8 @@ if "%CHOICE%"=="5" goto camelot_converter
 if "%CHOICE%"=="6" goto camelot_comments
 if "%CHOICE%"=="7" goto wav_to_mp3
 if "%CHOICE%"=="8" goto rekordbox_xml
-if "%CHOICE%"=="9" goto end
+if "%CHOICE%"=="9" goto update_tools
+if "%CHOICE%"=="10" goto end
 
 echo.
 echo Invalid choice.
@@ -278,6 +280,39 @@ echo and creates a Rekordbox-compatible XML plus a matching log file.
 echo.
 call :run_python "%ROOT_DIR%\xml_generator\rekordbox_xml_generator.py"
 call :report_exit "Rekordbox XML generator" %ERRORLEVEL%
+goto return_to_menu
+
+:update_tools
+cls
+echo ==========================================
+echo Update Command-Line Tools
+echo ==========================================
+echo.
+echo Checks for newer versions of yt-dlp and mutagen.
+echo (ffmpeg, ffprobe, and fpcalc must be updated manually
+echo  by replacing the binaries in crate-digger\.)
+echo.
+
+echo --- yt-dlp ---
+if exist "%ROOT_DIR%\crate-digger\yt-dlp.exe" (
+    "%ROOT_DIR%\crate-digger\yt-dlp.exe" -U
+    rem Refresh the weekly stamp so the auto-checker in digcrate.bat
+    rem doesn't re-run an update we just did.
+    echo. > "%ROOT_DIR%\crate-digger\.last_update_check"
+) else (
+    echo [SKIP] yt-dlp.exe not found in crate-digger\
+)
+echo.
+
+echo --- mutagen (Python package) ---
+if exist "%ROOT_DIR%\musicKeyConversion\.venv\Scripts\python.exe" (
+    "%ROOT_DIR%\musicKeyConversion\.venv\Scripts\python.exe" -m pip install --upgrade mutagen
+) else (
+    py -m pip install --upgrade mutagen
+)
+echo.
+
+call :report_exit "Update tools" %ERRORLEVEL%
 goto return_to_menu
 
 :run_musickey

@@ -5,7 +5,7 @@ Main launcher:
 
 Run that file, then choose a number from the menu.
 
-The menu now has 9 options:
+The menu now has 10 options:
 
 1. Build new dated crate tree
 2. Clean / mark empty folders
@@ -15,7 +15,8 @@ The menu now has 9 options:
 6. Camelot to comments
 7. Encode WAV to MP3 (single file)
 8. Rekordbox XML generator
-9. Exit
+9. Update command-line tools
+10. Exit
 
 You can press `Q` at any prompt to return to the main menu without making changes.
 
@@ -92,6 +93,9 @@ While stepping:
 
 Stopping a long auto-run:
 After each source finishes, you have a 2-second window to press `Q`. A `Q` pressed at any point during the download is also picked up at the next check. The current download always finishes, then you return to the main menu.
+
+Automatic updates:
+The crate digger checks for yt-dlp updates once per week and runs `yt-dlp -U` automatically when stale. You don't need to do anything. To force an update before the weekly check, run menu option `9` (Update command-line tools).
 
 Where to edit crate digger behavior:
 
@@ -264,6 +268,8 @@ Use `6` if you want Camelot plus key plus BPM written to comments only.
 Use `7` if you want to convert a single `.wav` file to `.mp3`.
 
 Use `8` if you want a Rekordbox XML generated from your folder structure.
+
+Use `9` if you want to force a yt-dlp / mutagen update right now (otherwise crate digger checks for yt-dlp updates automatically once a week).
 
 ## Need More Detail?
 

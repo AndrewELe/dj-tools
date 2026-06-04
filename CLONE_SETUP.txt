@@ -135,3 +135,4 @@ Notes
 - Option `3` (Crate digger) uses the executables and text files in `crate-digger`.
 - Option `4` (Dedupe audio) is PowerShell-based and needs `crate-digger\fpcalc.exe` and `crate-digger\dedupe_audio.ps1`.
 - Option `7` (WAV to MP3) shells out to `crate-digger\ffmpeg.exe` for libmp3lame encoding.
+- Option `9` (Update command-line tools) runs `yt-dlp -U` and `pip install --upgrade mutagen`. Crate digger also runs the same yt-dlp check automatically once per week using `crate-digger\.last_update_check` as the stamp file.
