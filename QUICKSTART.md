@@ -5,7 +5,7 @@ Main launcher:
 
 Run that file, then choose a number from the menu.
 
-The menu now has 10 options:
+The menu now has 11 options:
 
 1. Build new dated crate tree
 2. Clean / mark empty folders
@@ -16,7 +16,8 @@ The menu now has 10 options:
 7. Encode WAV to MP3 (single file)
 8. Rekordbox XML generator
 9. Update command-line tools
-10. Exit
+10. Find or redownload a missing track
+11. Exit
 
 You can press `Q` at any prompt to return to the main menu without making changes.
 
@@ -270,6 +271,8 @@ Use `7` if you want to convert a single `.wav` file to `.mp3`.
 Use `8` if you want a Rekordbox XML generated from your folder structure.
 
 Use `9` if you want to force a yt-dlp / mutagen update right now (otherwise crate digger checks for yt-dlp updates automatically once a week).
+
+Use `10` if you remember a track name but cannot find it locally — it searches your folder, then your SoundCloud likes, and lets you redownload picked matches into a `lost tracks` subfolder.
 
 ## Need More Detail?
 

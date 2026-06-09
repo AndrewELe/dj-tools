@@ -21,7 +21,8 @@ The menu currently includes:
 7. Encode WAV to MP3 (single file)
 8. Rekordbox XML generator
 9. Update command-line tools
-10. Exit
+10. Find or redownload a missing track
+11. Exit
 
 ## Basic Usage
 
@@ -568,7 +569,42 @@ What it does NOT update:
 Side effect:
 After a successful yt-dlp update, the weekly auto-update stamp (`crate-digger\.last_update_check`) is refreshed so crate digger doesn't immediately re-run an update you just did.
 
-## Menu Option 10: Exit
+## Menu Option 10: Find Or Redownload A Missing Track
+
+Purpose:
+Searches a folder recursively for a track by name. If nothing matches locally, scans your SoundCloud likes for matching tracks and lets you redownload the ones you pick into a `lost tracks` subfolder.
+
+What it asks for:
+
+1. The track name (substring, case-insensitive). For example, `love letters` will match `Artist - Love Letters (Original Mix).mp3`.
+2. The folder to search recursively, or `Q` to return to menu.
+
+What it does:
+
+- Walks the folder you provide and inspects every audio file (`.mp3`, `.flac`, `.wav`, `.aiff`, `.aif`, `.m4a`).
+- A filename is considered a match if the lowercased track name is a substring of the lowercased filename stem.
+- If at least one local match is found, it prints the path(s) and exits — no download.
+- If nothing matches locally, it runs `yt-dlp --flat-playlist` against your SoundCloud likes (`https://soundcloud.com/druleprivate/likes`) and filters titles by the same substring.
+  - This step can take 10-30 seconds for a large likes list. yt-dlp's progress prints while it works.
+- If matches are found in likes, they are printed numbered, e.g.:
+
+      1. druleprivate - Love Letters (Original Mix)
+         https://soundcloud.com/...
+
+  You can pick a single number, a comma list (`1,3`), `all`, or `Q` to return.
+- Picked tracks are downloaded with the same audio extraction / metadata embedding rules used elsewhere in the toolkit, into `<your search folder>\lost tracks\`.
+
+What it does NOT do:
+
+- It does not look at the rest of `sources.txt` or `crawler.txt`. Only `druleprivate/likes` is searched.
+- It does not delete or overwrite anything. The download archive (`crate-digger\archive.txt`) is bypassed so even tracks you previously downloaded but lost will redownload.
+
+When to use it:
+
+- You know a specific track used to be in your library but cannot find it now.
+- A crate-digger run finished and you suspect one track is missing — you remember the name but not where it should be.
+
+## Menu Option 11: Exit
 
 Purpose:
 Closes the menu. You can also press `Q` at the main menu prompt instead.

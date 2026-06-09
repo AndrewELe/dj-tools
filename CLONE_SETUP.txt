@@ -88,19 +88,20 @@ What they mean:
 If crate digger, dedupe, or WAV->MP3 do not run
 -----------------------------------------------
 
-Menu options `3`, `4`, and `7` all rely on files inside `crate-digger\`.
+Menu options `3`, `4`, `7`, and `10` all rely on files inside `crate-digger\`.
 
 Check that these exist:
 
-- `crate-digger\yt-dlp.exe`        (option 3)
-- `crate-digger\ffmpeg.exe`        (option 3, option 7 — WAV to MP3 encoder)
-- `crate-digger\ffprobe.exe`       (option 3)
-- `crate-digger\fpcalc.exe`        (option 4 — dedupe fingerprinting)
-- `crate-digger\sources.txt`       (option 3)
-- `crate-digger\crawler.txt`       (option 3)
-- `crate-digger\yt-dlp.conf`       (option 3)
-- `crate-digger\discover.ps1`      (option 3 — discovery crawler)
-- `crate-digger\dedupe_audio.ps1`  (option 4)
+- `crate-digger\yt-dlp.exe`               (option 3, option 10 — find/redownload)
+- `crate-digger\ffmpeg.exe`               (option 3, option 7 — WAV to MP3 encoder)
+- `crate-digger\ffprobe.exe`              (option 3)
+- `crate-digger\fpcalc.exe`               (option 4 — dedupe fingerprinting)
+- `crate-digger\sources.txt`              (option 3)
+- `crate-digger\crawler.txt`              (option 3)
+- `crate-digger\yt-dlp.conf`              (option 3)
+- `crate-digger\discover.ps1`             (option 3 — discovery crawler)
+- `crate-digger\dedupe_audio.ps1`         (option 4)
+- `crate-digger\find_or_redownload.py`    (option 10)
 
 If any of those are missing, the relevant menu option will not work until they are restored.
 
@@ -136,3 +137,4 @@ Notes
 - Option `4` (Dedupe audio) is PowerShell-based and needs `crate-digger\fpcalc.exe` and `crate-digger\dedupe_audio.ps1`.
 - Option `7` (WAV to MP3) shells out to `crate-digger\ffmpeg.exe` for libmp3lame encoding.
 - Option `9` (Update command-line tools) runs `yt-dlp -U` and `pip install --upgrade mutagen`. Crate digger also runs the same yt-dlp check automatically once per week using `crate-digger\.last_update_check` as the stamp file.
+- Option `10` (Find or redownload a missing track) is Python-based but also calls `crate-digger\yt-dlp.exe` to enumerate SoundCloud likes and to download the chosen track(s). Requires internet access for the second half of the flow.

@@ -19,11 +19,12 @@ echo 6. Camelot to comments
 echo 7. Encode WAV to MP3 (single file)
 echo 8. Rekordbox XML generator
 echo 9. Update command-line tools
-echo 10. Exit
+echo 10. Find or redownload a missing track
+echo 11. Exit
 echo.
 
 set "CHOICE="
-set /p "CHOICE=Choose an option (1-10, or Q to quit): "
+set /p "CHOICE=Choose an option (1-11, or Q to quit): "
 
 if /I "%CHOICE%"=="q" goto end
 if "%CHOICE%"=="1" goto build
@@ -35,7 +36,8 @@ if "%CHOICE%"=="6" goto camelot_comments
 if "%CHOICE%"=="7" goto wav_to_mp3
 if "%CHOICE%"=="8" goto rekordbox_xml
 if "%CHOICE%"=="9" goto update_tools
-if "%CHOICE%"=="10" goto end
+if "%CHOICE%"=="10" goto find_track
+if "%CHOICE%"=="11" goto end
 
 echo.
 echo Invalid choice.
@@ -313,6 +315,50 @@ if exist "%ROOT_DIR%\musicKeyConversion\.venv\Scripts\python.exe" (
 echo.
 
 call :report_exit "Update tools" %ERRORLEVEL%
+goto return_to_menu
+
+:find_track
+cls
+echo ==========================================
+echo Find Or Redownload A Missing Track
+echo ==========================================
+echo.
+echo Searches the folder you provide recursively for a track whose
+echo filename contains the name you type (case-insensitive). If no
+echo match is found locally, the tool will list matching tracks from
+echo your SoundCloud likes and let you redownload them into a
+echo "lost tracks" subfolder inside the same folder.
+echo.
+
+set "TRACK_NAME="
+set /p "TRACK_NAME=Enter the track name to find, or Q to return to menu: "
+
+if defined TRACK_NAME set "TRACK_NAME=!TRACK_NAME:"=!"
+
+if /I "!TRACK_NAME!"=="q" goto menu
+if not defined TRACK_NAME (
+    echo.
+    echo No track name entered.
+    pause
+    goto menu
+)
+
+set "FIND_FOLDER="
+set /p "FIND_FOLDER=Enter the folder to search recursively, or Q to return to menu: "
+
+if defined FIND_FOLDER set "FIND_FOLDER=!FIND_FOLDER:"=!"
+
+if /I "!FIND_FOLDER!"=="q" goto menu
+if not defined FIND_FOLDER (
+    echo.
+    echo No folder entered.
+    pause
+    goto menu
+)
+
+echo.
+call :run_python "%ROOT_DIR%\crate-digger\find_or_redownload.py" --track-name "!TRACK_NAME!" --search-folder "!FIND_FOLDER!"
+call :report_exit "Find or redownload track" %ERRORLEVEL%
 goto return_to_menu
 
 :run_musickey
