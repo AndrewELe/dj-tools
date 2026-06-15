@@ -57,3 +57,4 @@ downloads/
 crate-digger/archive.txt
 crate-digger/discovered_sources.txt
 crate-digger/discovered_raw.txt
+crate-digger/.last_update_check
