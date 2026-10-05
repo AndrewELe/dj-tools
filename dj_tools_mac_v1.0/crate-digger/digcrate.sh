@@ -34,6 +34,14 @@ ARCHIVE_FILE="$SCRIPT_DIR/archive.txt"
 STAMP_FILE="$SCRIPT_DIR/.last_update_check"
 FULL_DOWNLOAD_URL="https://soundcloud.com/druleprivate/likes"
 
+# Main sources grab their newest SOURCE_CAP tracks. Crawler seeds and
+# discovered sources instead dig down the list, skipping anything already in
+# the archive, until NEW_TRACK_TARGET new tracks have actually been downloaded
+# or the newest DIG_LOOKBACK tracks have been worked through.
+SOURCE_CAP=15
+NEW_TRACK_TARGET=15
+DIG_LOOKBACK=200
+
 # Default music root on Mac; override with DJTOOLS_MUSIC_ROOT.
 DOWNLOAD_ROOT="${DJTOOLS_MUSIC_ROOT:-$HOME/Music/SoundCloud}"
 YTDLP_OUTPUT_TEMPLATE="$DOWNLOAD_ROOT/%(artist,creator,uploader)s - %(title)s.%(ext)s"
@@ -200,13 +208,31 @@ update_ytdlp_if_stale
 
 # --- Helpers for running a source -----------------------------------------
 
-# Echoes the playlist args for a URL (uncapped for the full-download likes).
+is_full_download() {
+    [ "$1" = "$FULL_DOWNLOAD_URL" ] || [ "$1" = "$FULL_DOWNLOAD_URL/" ]
+}
+
+# Echoes the playlist args for a URL. $1 = url, $2 = CAP or DIG.
+# The full-download likes are always uncapped.
 playlist_args_for() {
-    local url="$1"
-    if [ "$url" = "$FULL_DOWNLOAD_URL" ] || [ "$url" = "$FULL_DOWNLOAD_URL/" ]; then
+    local url="$1" runmode="$2"
+    if is_full_download "$url"; then
         echo ""
+    elif [ "$runmode" = "DIG" ]; then
+        # --no-playlist-reverse overrides yt-dlp.conf so digging starts at the
+        # newest track; --max-downloads counts only real downloads, not
+        # archive skips, DRM failures or filtered tracks.
+        echo "--max-downloads $NEW_TRACK_TARGET --playlist-end $DIG_LOOKBACK --no-playlist-reverse"
     else
-        echo "--playlist-end 15"
+        echo "--playlist-end $SOURCE_CAP"
+    fi
+}
+
+archive_count() {
+    if [ -f "$ARCHIVE_FILE" ]; then
+        wc -l < "$ARCHIVE_FILE" | tr -d '[:space:]'
+    else
+        echo 0
     fi
 }
 
@@ -227,9 +253,9 @@ check_quit() {
     return 0
 }
 
-# $1 = label, $2 = url
+# $1 = label, $2 = url, $3 = CAP (newest N tracks) or DIG (next N new tracks)
 run_source() {
-    local label="$1" url="$2" stepinput=""
+    local label="$1" url="$2" runmode="$3" stepinput=""
     if [ "$MODE" = "STEP" ]; then
         echo "----------------------------------------"
         echo "$label: $url"
@@ -244,31 +270,55 @@ run_source() {
     echo "----------------------------------------"
     echo "$label: $url"
     echo "----------------------------------------"
-    local pargs
-    pargs="$(playlist_args_for "$url")"
+    local pargs before rc
+    pargs="$(playlist_args_for "$url" "$runmode")"
+    before="$(archive_count)"
     # ${arr[@]+...} form: macOS ships bash 3.2, where expanding an empty array
     # under `set -u` is an "unbound variable" error.
     "$YTDLP" --config-location "$YTDLPCONF" ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
         --download-archive "$ARCHIVE_FILE" --no-update \
         -o "$YTDLP_OUTPUT_TEMPLATE" --ignore-errors --no-abort-on-error $pargs "$url"
+    rc=$?
+
+    # yt-dlp exits with 101 when --max-downloads is hit. Any other exit in DIG
+    # mode means the list ran out before reaching the target, so stop and wait
+    # for the user (even in AUTO mode).
+    if [ "$runmode" = "DIG" ] && ! is_full_download "$url" && [ "$rc" -ne 101 ]; then
+        local new_tracks exhaustinput=""
+        new_tracks=$(( $(archive_count) - before ))
+        echo
+        echo "========================================"
+        echo "  SOURCE EXHAUSTED"
+        echo "========================================"
+        echo "$label: $url"
+        echo "Only $new_tracks of $NEW_TRACK_TARGET new tracks downloaded (newest $DIG_LOOKBACK checked)."
+        echo "The rest are already in the archive, DRM protected or filtered out - or"
+        echo "yt-dlp hit errors. If you saw \"HTTP Error 429\" above, SoundCloud is"
+        echo "rate limiting: wait ~10 minutes before continuing."
+        echo
+        read -r -p "ENTER = continue to next source, Q = return to main menu: " exhaustinput
+        [ "$(lower "$exhaustinput")" = "q" ] && return 1
+        return 0
+    fi
+
     check_quit || return 1
     return 0
 }
 
 # Reads a source list file, running run_source for each non-blank, non-# line.
-# $1 = file, $2 = label prefix
+# $1 = file, $2 = label prefix, $3 = CAP or DIG (see run_source)
 #
 # The file is read on FD 3 (not stdin) so the interactive `read` prompts inside
 # run_source / check_quit still read from the keyboard, not from the list file.
 process_file() {
-    local file="$1" prefix="$2" count=0 line trimmed
+    local file="$1" prefix="$2" runmode="$3" count=0 line trimmed
     while IFS= read -r line <&3 || [ -n "$line" ]; do
         # Trim leading/trailing whitespace.
         trimmed="$(printf '%s' "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
         [ -z "$trimmed" ] && continue
         case "$trimmed" in \#*) continue ;; esac
         count=$((count + 1))
-        run_source "$prefix $count" "$trimmed" || return 1
+        run_source "$prefix $count" "$trimmed" "$runmode" || return 1
     done 3< "$file"
     return 0
 }
@@ -291,12 +341,12 @@ print_summary() {
 echo
 echo "Checking main sources..."
 echo
-process_file "$SOURCES_FILE" "Source" || { print_summary; exit 0; }
+process_file "$SOURCES_FILE" "Source" CAP || { print_summary; exit 0; }
 
 echo
 echo "Checking crawler seeds..."
 echo
-process_file "$CRAWLER_FILE" "Crawler" || { print_summary; exit 0; }
+process_file "$CRAWLER_FILE" "Crawler" DIG || { print_summary; exit 0; }
 
 echo
 echo "Running discovery crawler..."
@@ -311,7 +361,7 @@ echo
 echo "Crawling discovered sources..."
 echo
 if [ -f "$DISCOVERED_FILE" ]; then
-    process_file "$DISCOVERED_FILE" "Discovered" || { print_summary; exit 0; }
+    process_file "$DISCOVERED_FILE" "Discovered" DIG || { print_summary; exit 0; }
 else
     echo "No discovered_sources.txt found, skipping discovered sources."
 fi
