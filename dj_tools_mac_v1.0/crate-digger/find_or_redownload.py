@@ -34,6 +34,31 @@ DEFAULT_YTDLP = SCRIPT_DIR / _YTDLP_BIN
 LikeItem = Tuple[str, str, str]  # (id, title, url)
 
 
+def get_cookie_args() -> List[str]:
+    """SoundCloud login cookies, same precedence as digcrate.sh / discover.sh:
+    explicit file > sc_cookies.txt next to this script > browser (default none).
+    Logging in raises the rate-limit ceiling and unlocks SoundCloud+/Go+ perks
+    (256kbps "High Quality" AAC streams, Go+-exclusive tracks) instead of
+    silently running anonymous.
+    """
+    cookie_file = os.environ.get("DJTOOLS_SC_COOKIES_FILE")
+    if not cookie_file:
+        default_cookie_file = SCRIPT_DIR / "sc_cookies.txt"
+        if default_cookie_file.exists():
+            cookie_file = str(default_cookie_file)
+
+    if cookie_file:
+        print(f"[OK] Using SoundCloud login cookies from: {cookie_file}")
+        return ["--cookies", cookie_file]
+
+    cookie_browser = os.environ.get("DJTOOLS_SC_COOKIES_BROWSER", "none")
+    if cookie_browser and cookie_browser.lower() != "none":
+        return ["--cookies-from-browser", cookie_browser]
+
+    print("[WARN] No sc_cookies.txt found - running anonymously (no Go+ streams).")
+    return []
+
+
 def normalize_input_path(raw: str) -> str:
     return raw.strip().strip('"').strip("'")
 
@@ -57,7 +82,9 @@ def fetch_likes(ytdlp_path: Path, likes_url: str) -> List[LikeItem]:
 
     cmd = [
         str(ytdlp_path),
+        "--ignore-config",
         "--no-update",
+        *get_cookie_args(),
         "--flat-playlist",
         "--print", "%(id)s|||%(title)s|||%(webpage_url)s",
         likes_url,
@@ -117,7 +144,12 @@ def download_track(ytdlp_path: Path, url: str, output_dir: Path) -> bool:
 
     cmd = [
         str(ytdlp_path),
+        # Skip the crate digger's yt-dlp.conf: its --download-archive would
+        # treat a lost track as "already downloaded" and exit 0 having fetched
+        # nothing, and its 13-minute filter would drop long tracks.
+        "--ignore-config",
         "--no-update",
+        *get_cookie_args(),
         "--extract-audio",
         "--audio-format", "mp3",
         "--audio-quality", "0",

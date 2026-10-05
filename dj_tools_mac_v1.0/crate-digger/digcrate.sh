@@ -36,9 +36,43 @@ FULL_DOWNLOAD_URL="https://soundcloud.com/druleprivate/likes"
 
 # Default music root on Mac; override with DJTOOLS_MUSIC_ROOT.
 DOWNLOAD_ROOT="${DJTOOLS_MUSIC_ROOT:-$HOME/Music/SoundCloud}"
-YTDLP_OUTPUT_TEMPLATE="$DOWNLOAD_ROOT/%(artist,creator,uploader)s/%(artist,creator,uploader)s - %(title)s.%(ext)s"
+YTDLP_OUTPUT_TEMPLATE="$DOWNLOAD_ROOT/%(artist,creator,uploader)s - %(title)s.%(ext)s"
 
 lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+# --- SoundCloud login cookies ---------------------------------------------
+# Logging in as your account unlocks Go+/SoundCloud+ 256kbps AAC streams and
+# makes SoundCloud throttle far less aggressively than anonymous traffic.
+#
+#   1. Cookies file (recommended): drop an exported cookies.txt named
+#      "sc_cookies.txt" next to this script, or point DJTOOLS_SC_COOKIES_FILE
+#      at any path.
+#   2. Live from a browser: set DJTOOLS_SC_COOKIES_BROWSER (firefox, chrome,
+#      brave, safari). Chrome/Brave pop a Keychain prompt; Safari needs Full
+#      Disk Access for Terminal.
+#
+# Precedence: explicit file > sc_cookies.txt next to the script > browser.
+# With neither set, runs anonymously (with a warning).
+COOKIE_FILE="${DJTOOLS_SC_COOKIES_FILE:-}"
+if [ -z "$COOKIE_FILE" ] && [ -f "$SCRIPT_DIR/sc_cookies.txt" ]; then
+    COOKIE_FILE="$SCRIPT_DIR/sc_cookies.txt"
+fi
+COOKIE_BROWSER="${DJTOOLS_SC_COOKIES_BROWSER:-none}"
+COOKIE_ARGS=()
+if [ -n "$COOKIE_FILE" ]; then
+    COOKIE_ARGS=(--cookies "$COOKIE_FILE")
+    echo "[OK] Using SoundCloud login cookies from: $COOKIE_FILE"
+    if ! grep -q 'oauth_token' "$COOKIE_FILE" 2>/dev/null; then
+        echo "[WARN] No oauth_token in that cookies file - you are NOT logged in."
+        echo "       Re-export sc_cookies.txt while signed in to soundcloud.com."
+    fi
+elif [ "$(lower "$COOKIE_BROWSER")" != "none" ]; then
+    COOKIE_ARGS=(--cookies-from-browser "$COOKIE_BROWSER")
+    echo "[OK] Using SoundCloud login cookies from browser: $COOKIE_BROWSER"
+else
+    echo "[WARN] No sc_cookies.txt found - downloading ANONYMOUSLY."
+    echo "       No Go+ 256kbps streams and heavier throttling."
+fi
 
 echo
 echo "========================================"
@@ -172,7 +206,7 @@ playlist_args_for() {
     if [ "$url" = "$FULL_DOWNLOAD_URL" ] || [ "$url" = "$FULL_DOWNLOAD_URL/" ]; then
         echo ""
     else
-        echo "--playlist-end 5"
+        echo "--playlist-end 15"
     fi
 }
 
@@ -212,7 +246,10 @@ run_source() {
     echo "----------------------------------------"
     local pargs
     pargs="$(playlist_args_for "$url")"
-    "$YTDLP" --config-location "$YTDLPCONF" --download-archive "$ARCHIVE_FILE" --no-update \
+    # ${arr[@]+...} form: macOS ships bash 3.2, where expanding an empty array
+    # under `set -u` is an "unbound variable" error.
+    "$YTDLP" --config-location "$YTDLPCONF" ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
+        --download-archive "$ARCHIVE_FILE" --no-update \
         -o "$YTDLP_OUTPUT_TEMPLATE" --ignore-errors --no-abort-on-error $pargs "$url"
     check_quit || return 1
     return 0

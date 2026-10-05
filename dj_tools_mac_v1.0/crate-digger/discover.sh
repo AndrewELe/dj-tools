@@ -25,6 +25,21 @@ SOURCES_FILE="$BASE/sources.txt"
 TEMP_FILE="$BASE/discovered_raw.txt"
 FINAL_FILE="$BASE/discovered_sources.txt"
 
+# SoundCloud login cookies, same precedence as digcrate.sh:
+# DJTOOLS_SC_COOKIES_FILE > sc_cookies.txt next to this script >
+# DJTOOLS_SC_COOKIES_BROWSER (unset = anonymous).
+COOKIE_FILE="${DJTOOLS_SC_COOKIES_FILE:-}"
+if [ -z "$COOKIE_FILE" ] && [ -f "$BASE/sc_cookies.txt" ]; then
+    COOKIE_FILE="$BASE/sc_cookies.txt"
+fi
+COOKIE_BROWSER="${DJTOOLS_SC_COOKIES_BROWSER:-none}"
+COOKIE_ARGS=()
+if [ -n "$COOKIE_FILE" ]; then
+    COOKIE_ARGS=(--cookies "$COOKIE_FILE")
+elif [ "$(printf '%s' "$COOKIE_BROWSER" | tr '[:upper:]' '[:lower:]')" != "none" ]; then
+    COOKIE_ARGS=(--cookies-from-browser "$COOKIE_BROWSER")
+fi
+
 if [ ! -f "$CRAWLER_FILE" ] && [ ! -f "$SOURCES_FILE" ]; then
     echo "ERROR: No seed files found. Expected crawler.txt and/or sources.txt in $BASE" >&2
     exit 1
@@ -56,7 +71,13 @@ echo
 for url in "${ALL_URLS[@]}"; do
     index=$((index + 1))
     echo "[DISCOVER] ($index/$total) $url"
+    # --ignore-config: yt-dlp otherwise auto-loads ./yt-dlp.conf (we cd'd into
+    # this folder), whose --download-archive makes it skip -- and print nothing
+    # for -- every track already downloaded, starving discovery.
     "$YTDLP" \
+        --ignore-config \
+        ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
+        --sleep-requests 1 \
         --skip-download \
         --ignore-errors \
         --no-abort-on-error \
