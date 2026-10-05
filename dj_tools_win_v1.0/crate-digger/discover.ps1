@@ -9,6 +9,26 @@ $seedFiles = @($crawlerFile, $sourcesFile)
 $tempFile = Join-Path $base "discovered_raw.txt"
 $finalFile = Join-Path $base "discovered_sources.txt"
 
+# SoundCloud login cookies (raises the rate-limit ceiling). Precedence:
+# explicit DJTOOLS_SC_COOKIES_FILE > sc_cookies.txt next to this script >
+# live from DJTOOLS_SC_COOKIES_BROWSER (unset = anonymous; Chrome
+# live-extraction usually fails on Windows, so a cookies file is the reliable
+# option).
+$cookieFile = $env:DJTOOLS_SC_COOKIES_FILE
+if (-not $cookieFile) {
+    $defaultCookieFile = Join-Path $base "sc_cookies.txt"
+    if (Test-Path $defaultCookieFile) { $cookieFile = $defaultCookieFile }
+}
+$cookieBrowser = $env:DJTOOLS_SC_COOKIES_BROWSER
+if (-not $cookieBrowser) { $cookieBrowser = "none" }
+$cookieArgs = @()
+if ($cookieFile) {
+    $cookieArgs = @("--cookies", $cookieFile)
+}
+elseif ($cookieBrowser -and $cookieBrowser -ne "none") {
+    $cookieArgs = @("--cookies-from-browser", $cookieBrowser)
+}
+
 if (-not (Test-Path $ytDlp)) {
     Write-Host "ERROR: yt-dlp.exe not found at $ytDlp" -ForegroundColor Red
     exit 1
@@ -51,7 +71,14 @@ foreach ($url in $allUrls) {
     Write-Host "[DISCOVER] ($index/$total) $cleanUrl"
 
     try {
+        # --ignore-config: otherwise yt-dlp auto-loads the portable yt-dlp.conf
+        # next to the exe, whose --download-archive makes it skip (and print
+        # nothing for) every track already downloaded, starving discovery.
         & $ytDlp `
+            --ignore-config `
+            --no-update `
+            @cookieArgs `
+            --sleep-requests 1 `
             --skip-download `
             --ignore-errors `
             --no-abort-on-error `

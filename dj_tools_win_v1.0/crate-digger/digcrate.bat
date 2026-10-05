@@ -19,8 +19,49 @@ if not defined DJTOOLS_MUSIC_ROOT (
     set "DJTOOLS_MUSIC_ROOT=C:\Music\SoundCloud"
 )
 set "DOWNLOAD_ROOT=%DJTOOLS_MUSIC_ROOT%"
-set "YTDLP_OUTPUT_TEMPLATE=%DOWNLOAD_ROOT%\%%(artist,creator,uploader)s\%%(artist,creator,uploader)s - %%(title)s.%%(ext)s"
+set "YTDLP_OUTPUT_TEMPLATE=%DOWNLOAD_ROOT%\%%(artist,creator,uploader)s - %%(title)s.%%(ext)s"
 set "ARCHIVE_FILE=%SCRIPT_DIR%\archive.txt"
+
+rem --- SoundCloud login cookies (raises the rate-limit ceiling) -----------
+rem Logging in as your account makes SoundCloud throttle far less aggressively
+rem than anonymous traffic. Two ways to supply cookies:
+rem
+rem   1. Cookies file (recommended on Windows): drop an exported cookies.txt
+rem      named "sc_cookies.txt" next to this script and it is picked up
+rem      automatically. Or point DJTOOLS_SC_COOKIES_FILE at any path. This is
+rem      the reliable option because Chrome locks its own cookie DB and (v127+)
+rem      encrypts it in a way yt-dlp cannot read live on Windows.
+rem
+rem   2. Live from a browser: set DJTOOLS_SC_COOKIES_BROWSER (chrome, edge,
+rem      firefox, brave). Firefox works while open; Chrome/Edge usually do NOT
+rem      on current Windows versions (see above).
+rem
+rem Precedence: explicit file > sc_cookies.txt next to the script > browser.
+rem With no cookies file and no browser set, runs anonymously (with a warning).
+if not defined DJTOOLS_SC_COOKIES_BROWSER (
+    set "DJTOOLS_SC_COOKIES_BROWSER=none"
+)
+if not defined DJTOOLS_SC_COOKIES_FILE (
+    if exist "%SCRIPT_DIR%\sc_cookies.txt" (
+        set "DJTOOLS_SC_COOKIES_FILE=%SCRIPT_DIR%\sc_cookies.txt"
+    )
+)
+set "COOKIE_ARGS="
+if defined DJTOOLS_SC_COOKIES_FILE (
+    set "COOKIE_ARGS=--cookies "%DJTOOLS_SC_COOKIES_FILE%""
+    echo [OK] Using SoundCloud login cookies from: !DJTOOLS_SC_COOKIES_FILE!
+    findstr /C:"oauth_token" "!DJTOOLS_SC_COOKIES_FILE!" >nul 2>&1
+    if errorlevel 1 (
+        echo [WARN] No oauth_token in that cookies file - you are NOT logged in.
+        echo        Re-export sc_cookies.txt while signed in to soundcloud.com.
+    )
+) else if /I not "%DJTOOLS_SC_COOKIES_BROWSER%"=="none" (
+    set "COOKIE_ARGS=--cookies-from-browser %DJTOOLS_SC_COOKIES_BROWSER%"
+    echo [OK] Using SoundCloud login cookies from browser: %DJTOOLS_SC_COOKIES_BROWSER%
+) else (
+    echo [WARN] No sc_cookies.txt found - downloading ANONYMOUSLY.
+    echo        No Go+ 256kbps streams and heavier throttling.
+)
 
 echo.
 echo ========================================
@@ -35,6 +76,7 @@ echo           to stop after the current source finishes)
 echo   Q     = return to main menu now
 echo.
 
+set "USERINPUT="
 set /p "USERINPUT=Press ENTER, A, or Q to return to main menu: "
 if /I "%USERINPUT%"=="A" set "MODE=AUTO"
 if /I "%USERINPUT%"=="Q" goto END
@@ -49,7 +91,10 @@ if errorlevel 1 set "PRECHECK_WARNING=1"
 call :CHECK_SOUNDCLOUD
 if errorlevel 1 set "PRECHECK_WARNING=1"
 
-if defined PRECHECK_WARNING call :PROMPT_AFTER_WARNINGS
+if defined PRECHECK_WARNING (
+    call :PROMPT_AFTER_WARNINGS
+    if errorlevel 1 goto EXIT_NOW
+)
 
 if not exist "%SOURCES_FILE%" (
     echo ERROR: sources.txt not found in %SCRIPT_DIR%
@@ -147,17 +192,18 @@ if /I "%MODE%"=="STEP" (
     echo ----------------------------------------
     echo %LABEL%: %URL%
     echo ----------------------------------------
+    set "STEPINPUT="
     set /p "STEPINPUT=ENTER = continue, S = skip, A = auto-run rest, Q = return to main menu: "
-    if /I "%STEPINPUT%"=="A" set "MODE=AUTO"
-    if /I "%STEPINPUT%"=="Q" exit /b 1
-    if /I "%STEPINPUT%"=="S" exit /b 0
+    if /I "!STEPINPUT!"=="A" set "MODE=AUTO"
+    if /I "!STEPINPUT!"=="Q" exit /b 1
+    if /I "!STEPINPUT!"=="S" exit /b 0
 )
 
 echo ----------------------------------------
 echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%"
-"%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+"%YTDLP%" --config-location "%YTDLPCONF%" %COOKIE_ARGS% --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
 call :CHECK_QUIT
 if errorlevel 1 exit /b 1
 exit /b 0
@@ -170,17 +216,18 @@ if /I "%MODE%"=="STEP" (
     echo ----------------------------------------
     echo %LABEL%: %URL%
     echo ----------------------------------------
+    set "STEPINPUT="
     set /p "STEPINPUT=ENTER = continue, S = skip, A = auto-run rest, Q = return to main menu: "
-    if /I "%STEPINPUT%"=="A" set "MODE=AUTO"
-    if /I "%STEPINPUT%"=="Q" exit /b 1
-    if /I "%STEPINPUT%"=="S" exit /b 0
+    if /I "!STEPINPUT!"=="A" set "MODE=AUTO"
+    if /I "!STEPINPUT!"=="Q" exit /b 1
+    if /I "!STEPINPUT!"=="S" exit /b 0
 )
 
 echo ----------------------------------------
 echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%"
-"%YTDLP%" --config-location "%YTDLPCONF%" --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+"%YTDLP%" --config-location "%YTDLPCONF%" %COOKIE_ARGS% --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
 call :CHECK_QUIT
 if errorlevel 1 exit /b 1
 exit /b 0
@@ -201,7 +248,7 @@ exit /b 0
 
 :GET_PLAYLIST_ARGS
 set "TARGET_URL=%~1"
-set "PLAYLIST_ARGS=--playlist-end 5"
+set "PLAYLIST_ARGS=--playlist-end 15"
 if /I "%TARGET_URL%"=="%FULL_DOWNLOAD_URL%" set "PLAYLIST_ARGS="
 if /I "%TARGET_URL%"=="%FULL_DOWNLOAD_URL%/" set "PLAYLIST_ARGS="
 exit /b 0
@@ -278,9 +325,10 @@ echo.
 echo One or more connectivity checks raised warnings.
 echo   C = continue into crate digger anyway
 echo   M = return to the main menu
+set "WARN_CHOICE="
 set /p "WARN_CHOICE=Choose C, M, or Q to return to main menu (default C): "
-if /I "%WARN_CHOICE%"=="M" goto EXIT_NOW
-if /I "%WARN_CHOICE%"=="Q" goto EXIT_NOW
+if /I "%WARN_CHOICE%"=="M" exit /b 1
+if /I "%WARN_CHOICE%"=="Q" exit /b 1
 exit /b 0
 
 :END
