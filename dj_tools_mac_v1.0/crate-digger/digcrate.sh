@@ -36,11 +36,14 @@ FULL_DOWNLOAD_URL="https://soundcloud.com/druleprivate/likes"
 
 # Main sources grab their newest SOURCE_CAP tracks. Crawler seeds and
 # discovered sources instead dig down the list, skipping anything already in
-# the archive, until NEW_TRACK_TARGET new tracks have actually been downloaded
-# or the newest DIG_LOOKBACK tracks have been worked through.
+# the archive, until NEW_TRACK_TARGET new tracks have downloaded successfully
+# or the newest DIG_LOOKBACK tracks have been worked through. Tracks that fail
+# partway don't count and are retried on the next run (see dig_source);
+# DIG_MAX_PASSES caps the re-digs after failures.
 SOURCE_CAP=15
 NEW_TRACK_TARGET=15
 DIG_LOOKBACK=200
+DIG_MAX_PASSES=5
 
 # Default music root on Mac; override with DJTOOLS_MUSIC_ROOT.
 DOWNLOAD_ROOT="${DJTOOLS_MUSIC_ROOT:-$HOME/Music/SoundCloud}"
@@ -212,17 +215,11 @@ is_full_download() {
     [ "$1" = "$FULL_DOWNLOAD_URL" ] || [ "$1" = "$FULL_DOWNLOAD_URL/" ]
 }
 
-# Echoes the playlist args for a URL. $1 = url, $2 = CAP or DIG.
+# Echoes the playlist args for a non-DIG source. $1 = url.
 # The full-download likes are always uncapped.
 playlist_args_for() {
-    local url="$1" runmode="$2"
-    if is_full_download "$url"; then
+    if is_full_download "$1"; then
         echo ""
-    elif [ "$runmode" = "DIG" ]; then
-        # --no-playlist-reverse overrides yt-dlp.conf so digging starts at the
-        # newest track; --max-downloads counts only real downloads, not
-        # archive skips, DRM failures or filtered tracks.
-        echo "--max-downloads $NEW_TRACK_TARGET --playlist-end $DIG_LOOKBACK --no-playlist-reverse"
     else
         echo "--playlist-end $SOURCE_CAP"
     fi
@@ -234,6 +231,110 @@ archive_count() {
     else
         echo 0
     fi
+}
+
+# Prints the non-blank lines of stdin that are not lines of file $1. (awk, not
+# grep -vxFf, which misbehaves on an empty pattern file in some grep builds.)
+lines_not_in() {
+    awk 'FILENAME == ARGV[1] { seen[$0] = 1; next } NF && !($0 in seen)' "$1" -
+}
+
+# Digs into a crawler/discovered source until NEW_TRACK_TARGET tracks have
+# downloaded successfully. $1 = url. Returns 0 when the target is reached,
+# 1 if the source ran out (or DIG_MAX_PASSES was hit) first.
+#
+# yt-dlp's --max-downloads counts a track as soon as its download starts, so a
+# track that fails partway (HTTP error, ffmpeg error...) would use up one of
+# the slots. Instead this runs yt-dlp in passes: after each pass, tracks that
+# made it into the archive count as downloaded, and tracks that were attempted
+# but did not make it are skipped for the rest of this run (via a temporary
+# copy of the archive) while the next pass digs for the remainder. Failed
+# tracks never reach the real archive, so the next run tries them again.
+dig_source() {
+    local url="$1" tmpdir failed pass=0 downloaded=0 remaining rc result=1
+    local pass_archive attempted before_file new_file new_count failed_count
+    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/crate-digger.XXXXXX")" || return 1
+    # Archive ids ("soundcloud 123...") of tracks that failed partway this run.
+    failed="$tmpdir/failed.txt"
+    : > "$failed"
+
+    while :; do
+        pass=$((pass + 1))
+        remaining=$((NEW_TRACK_TARGET - downloaded))
+        attempted="$tmpdir/attempted_$pass.txt"
+        before_file="$tmpdir/before_$pass.txt"
+        new_file="$tmpdir/new_$pass.txt"
+
+        if [ -s "$failed" ]; then
+            # Real archive + this run's failures, so yt-dlp skips the failures.
+            pass_archive="$tmpdir/archive_$pass.txt"
+            { [ -f "$ARCHIVE_FILE" ] && tr -d '\r' < "$ARCHIVE_FILE" | awk 1; cat "$failed"; } > "$pass_archive"
+        else
+            pass_archive="$ARCHIVE_FILE"
+        fi
+        if [ -f "$pass_archive" ]; then
+            tr -d '\r' < "$pass_archive" > "$before_file"
+        else
+            : > "$before_file"
+        fi
+
+        # --no-playlist-reverse overrides yt-dlp.conf so digging starts at the
+        # newest track. before_dl fires for exactly the tracks yt-dlp counts
+        # toward --max-downloads, i.e. every real download attempt.
+        "$YTDLP" --config-location "$YTDLPCONF" ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
+            --download-archive "$pass_archive" --no-update \
+            -o "$YTDLP_OUTPUT_TEMPLATE" --ignore-errors --no-abort-on-error \
+            --max-downloads "$remaining" --playlist-end "$DIG_LOOKBACK" --no-playlist-reverse \
+            --print-to-file "before_dl:%(extractor_key)s %(id)s" "$attempted" \
+            "$url"
+        rc=$?
+
+        # New archive lines = tracks that downloaded successfully this pass.
+        if [ -f "$pass_archive" ]; then
+            tr -d '\r' < "$pass_archive" | lines_not_in "$before_file" > "$new_file"
+        else
+            : > "$new_file"
+        fi
+        new_count="$(grep -c . "$new_file")"
+        if [ "$pass_archive" != "$ARCHIVE_FILE" ] && [ "$new_count" -gt 0 ]; then
+            # Make sure the real archive ends with a newline before appending.
+            if [ -s "$ARCHIVE_FILE" ] && [ -n "$(tail -c 1 "$ARCHIVE_FILE")" ]; then
+                echo >> "$ARCHIVE_FILE"
+            fi
+            cat "$new_file" >> "$ARCHIVE_FILE"
+        fi
+        downloaded=$((downloaded + new_count))
+
+        # Attempted but not archived = failed partway.
+        if [ -s "$attempted" ]; then
+            tr -d '\r' < "$pass_archive" > "$tmpdir/after_$pass.txt"
+            tr -d '\r' < "$attempted" | awk 'NF >= 2 { $1 = tolower($1); print }' \
+                | lines_not_in "$tmpdir/after_$pass.txt" >> "$failed"
+        fi
+
+        if [ "$downloaded" -ge "$NEW_TRACK_TARGET" ]; then
+            result=0
+            break
+        fi
+        # Any exit other than 101 (--max-downloads hit) means the list ran out.
+        [ "$rc" -ne 101 ] && break
+        if [ "$pass" -ge "$DIG_MAX_PASSES" ]; then
+            echo "[DIG] Giving up on this source after $pass passes."
+            break
+        fi
+        failed_count="$(grep -c . "$failed")"
+        echo
+        echo "[DIG] $downloaded of $NEW_TRACK_TARGET new tracks downloaded, $failed_count failed partway (not counted)."
+        echo "[DIG] Digging for $((NEW_TRACK_TARGET - downloaded)) more, skipping the failed tracks..."
+        echo
+    done
+
+    failed_count="$(grep -c . "$failed")"
+    if [ "$failed_count" -gt 0 ]; then
+        echo "[DIG] $failed_count track(s) failed partway - not counted, will retry next run."
+    fi
+    rm -rf "$tmpdir"
+    return "$result"
 }
 
 # Returns 1 if the user wants to stop (in AUTO mode), else 0.
@@ -270,35 +371,38 @@ run_source() {
     echo "----------------------------------------"
     echo "$label: $url"
     echo "----------------------------------------"
-    local pargs before rc
-    pargs="$(playlist_args_for "$url" "$runmode")"
-    before="$(archive_count)"
-    # ${arr[@]+...} form: macOS ships bash 3.2, where expanding an empty array
-    # under `set -u` is an "unbound variable" error.
-    "$YTDLP" --config-location "$YTDLPCONF" ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
-        --download-archive "$ARCHIVE_FILE" --no-update \
-        -o "$YTDLP_OUTPUT_TEMPLATE" --ignore-errors --no-abort-on-error $pargs "$url"
-    rc=$?
-
-    # yt-dlp exits with 101 when --max-downloads is hit. Any other exit in DIG
-    # mode means the list ran out before reaching the target, so stop and wait
-    # for the user (even in AUTO mode).
-    if [ "$runmode" = "DIG" ] && ! is_full_download "$url" && [ "$rc" -ne 101 ]; then
-        local new_tracks exhaustinput=""
-        new_tracks=$(( $(archive_count) - before ))
-        echo
-        echo "========================================"
-        echo "  SOURCE EXHAUSTED"
-        echo "========================================"
-        echo "$label: $url"
-        echo "Only $new_tracks of $NEW_TRACK_TARGET new tracks downloaded (newest $DIG_LOOKBACK checked)."
-        echo "The rest are already in the archive, DRM protected or filtered out - or"
-        echo "yt-dlp hit errors. If you saw \"HTTP Error 429\" above, SoundCloud is"
-        echo "rate limiting: wait ~10 minutes before continuing."
-        echo
-        read -r -p "ENTER = continue to next source, Q = return to main menu: " exhaustinput
-        [ "$(lower "$exhaustinput")" = "q" ] && return 1
-        return 0
+    if [ "$runmode" != "DIG" ] || is_full_download "$url"; then
+        local pargs
+        pargs="$(playlist_args_for "$url")"
+        # ${arr[@]+...} form: macOS ships bash 3.2, where expanding an empty
+        # array under `set -u` is an "unbound variable" error.
+        "$YTDLP" --config-location "$YTDLPCONF" ${COOKIE_ARGS[@]+"${COOKIE_ARGS[@]}"} \
+            --download-archive "$ARCHIVE_FILE" --no-update \
+            -o "$YTDLP_OUTPUT_TEMPLATE" --ignore-errors --no-abort-on-error $pargs "$url"
+    else
+        local before
+        before="$(archive_count)"
+        # dig_source fails when the list ran out before reaching the target, so
+        # pause 5 seconds for the user (even in AUTO mode).
+        if ! dig_source "$url"; then
+            local new_tracks exhaustinput=""
+            new_tracks=$(( $(archive_count) - before ))
+            echo
+            echo "========================================"
+            echo "  SOURCE EXHAUSTED"
+            echo "========================================"
+            echo "$label: $url"
+            echo "Only $new_tracks of $NEW_TRACK_TARGET new tracks downloaded (newest $DIG_LOOKBACK checked)."
+            echo "The rest are already in the archive, DRM protected or filtered out - or"
+            echo "yt-dlp hit errors. Tracks that failed partway were not counted and will"
+            echo "be retried next run. If you saw \"HTTP Error 429\" above, SoundCloud is"
+            echo "rate limiting: wait ~10 minutes before continuing."
+            echo
+            read -r -t 5 -n 1 -p "ENTER = continue to next source, Q = return to main menu (continuing in 5s) " exhaustinput
+            echo
+            [ "$(lower "$exhaustinput")" = "q" ] && return 1
+            return 0
+        fi
     fi
 
     check_quit || return 1

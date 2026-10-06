@@ -10,6 +10,7 @@ set "STARTTIME=%TIME%"
 set "YTDLP=%SCRIPT_DIR%\yt-dlp.exe"
 set "YTDLPCONF=%SCRIPT_DIR%\yt-dlp.conf"
 set "DISCOVER_PS1=%SCRIPT_DIR%\discover.ps1"
+set "DIG_PS1=%SCRIPT_DIR%\dig_source.ps1"
 set "DEDUPE_PS1=%SCRIPT_DIR%\dedupe_audio.ps1"
 set "SOURCES_FILE=%SCRIPT_DIR%\sources.txt"
 set "CRAWLER_FILE=%SCRIPT_DIR%\crawler.txt"
@@ -24,11 +25,14 @@ set "ARCHIVE_FILE=%SCRIPT_DIR%\archive.txt"
 
 rem Main sources grab their newest %SOURCE_CAP% tracks. Crawler seeds and
 rem discovered sources instead dig down the list, skipping anything already
-rem in the archive, until %NEW_TRACK_TARGET% new tracks have actually been
-rem downloaded or the newest %DIG_LOOKBACK% tracks have been worked through.
+rem in the archive, until %NEW_TRACK_TARGET% new tracks have downloaded
+rem successfully or the newest %DIG_LOOKBACK% tracks have been worked through.
+rem Tracks that fail partway don't count and are retried on the next run (see
+rem dig_source.ps1); %DIG_MAX_PASSES% caps the re-digs after failures.
 set "SOURCE_CAP=15"
 set "NEW_TRACK_TARGET=15"
 set "DIG_LOOKBACK=200"
+set "DIG_MAX_PASSES=5"
 
 rem --- SoundCloud login cookies (raises the rate-limit ceiling) -----------
 rem Logging in as your account makes SoundCloud throttle far less aggressively
@@ -55,8 +59,10 @@ if not defined DJTOOLS_SC_COOKIES_FILE (
     )
 )
 set "COOKIE_ARGS="
+set "DIG_COOKIE_ARGS="
 if defined DJTOOLS_SC_COOKIES_FILE (
     set "COOKIE_ARGS=--cookies "%DJTOOLS_SC_COOKIES_FILE%""
+    set "DIG_COOKIE_ARGS=-CookiesFile "%DJTOOLS_SC_COOKIES_FILE%""
     echo [OK] Using SoundCloud login cookies from: !DJTOOLS_SC_COOKIES_FILE!
     findstr /C:"oauth_token" "!DJTOOLS_SC_COOKIES_FILE!" >nul 2>&1
     if errorlevel 1 (
@@ -65,6 +71,7 @@ if defined DJTOOLS_SC_COOKIES_FILE (
     )
 ) else if /I not "%DJTOOLS_SC_COOKIES_BROWSER%"=="none" (
     set "COOKIE_ARGS=--cookies-from-browser %DJTOOLS_SC_COOKIES_BROWSER%"
+    set "DIG_COOKIE_ARGS=-CookiesBrowser %DJTOOLS_SC_COOKIES_BROWSER%"
     echo [OK] Using SoundCloud login cookies from browser: %DJTOOLS_SC_COOKIES_BROWSER%
 ) else (
     echo [WARN] No sc_cookies.txt found - downloading ANONYMOUSLY.
@@ -121,6 +128,11 @@ if not exist "%YTDLP%" (
 
 if not exist "%YTDLPCONF%" (
     echo ERROR: yt-dlp.conf not found in %SCRIPT_DIR%
+    goto END
+)
+
+if not exist "%DIG_PS1%" (
+    echo ERROR: dig_source.ps1 not found in %SCRIPT_DIR%
     goto END
 )
 
@@ -213,33 +225,36 @@ echo ----------------------------------------
 echo %LABEL%: %URL%
 echo ----------------------------------------
 call :GET_PLAYLIST_ARGS "%URL%" %RUNMODE%
+if defined DIG_ACTIVE goto RUN_SOURCE_DIG
+"%YTDLP%" --config-location "%YTDLPCONF%" %COOKIE_ARGS% --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
+goto RUN_SOURCE_DONE
+
+:RUN_SOURCE_DIG
 call :COUNT_ARCHIVE
 set "ARCHIVE_BEFORE=%ARCHIVE_COUNT%"
-"%YTDLP%" --config-location "%YTDLPCONF%" %COOKIE_ARGS% --download-archive "%ARCHIVE_FILE%" --no-update -o "%YTDLP_OUTPUT_TEMPLATE%" --ignore-errors --no-abort-on-error %PLAYLIST_ARGS% "%URL%"
-set "YTDLP_RC=%ERRORLEVEL%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%DIG_PS1%" -YtDlp "%YTDLP%" -Config "%YTDLPCONF%" -ArchiveFile "%ARCHIVE_FILE%" -OutputTemplate "%YTDLP_OUTPUT_TEMPLATE%" -Url "%URL%" -Target %NEW_TRACK_TARGET% -Lookback %DIG_LOOKBACK% -MaxPasses %DIG_MAX_PASSES% %DIG_COOKIE_ARGS%
 
-rem yt-dlp exits with 101 when --max-downloads is hit. Any other exit in DIG
-rem mode means the list ran out before reaching the target, so stop and wait
-rem for the user (even in AUTO mode).
-if defined DIG_ACTIVE if not "%YTDLP_RC%"=="101" (
-    call :COUNT_ARCHIVE
-    set /a "NEW_TRACKS=ARCHIVE_COUNT-ARCHIVE_BEFORE"
-    echo.
-    echo ========================================
-    echo   SOURCE EXHAUSTED
-    echo ========================================
-    echo %LABEL%: %URL%
-    echo Only !NEW_TRACKS! of %NEW_TRACK_TARGET% new tracks downloaded ^(newest %DIG_LOOKBACK% checked^).
-    echo The rest are already in the archive, DRM protected or filtered out - or
-    echo yt-dlp hit errors. If you saw "HTTP Error 429" above, SoundCloud is
-    echo rate limiting: wait ~10 minutes before continuing.
-    echo.
-    set "EXHAUSTINPUT="
-    set /p "EXHAUSTINPUT=ENTER = continue to next source, Q = return to main menu: "
-    if /I "!EXHAUSTINPUT!"=="Q" exit /b 1
-    exit /b 0
-)
+rem dig_source.ps1 exits 0 once the target is reached. Anything else means the
+rem list ran out first, so pause 5 seconds for the user (even in AUTO mode).
+if not errorlevel 1 goto RUN_SOURCE_DONE
+call :COUNT_ARCHIVE
+set /a "NEW_TRACKS=ARCHIVE_COUNT-ARCHIVE_BEFORE"
+echo.
+echo ========================================
+echo   SOURCE EXHAUSTED
+echo ========================================
+echo %LABEL%: %URL%
+echo Only %NEW_TRACKS% of %NEW_TRACK_TARGET% new tracks downloaded ^(newest %DIG_LOOKBACK% checked^).
+echo The rest are already in the archive, DRM protected or filtered out - or
+echo yt-dlp hit errors. Tracks that failed partway were not counted and will
+echo be retried next run. If you saw "HTTP Error 429" above, SoundCloud is
+echo rate limiting: wait ~10 minutes before continuing.
+echo.
+choice /T 5 /D C /C CQ /M "C = continue to next source, Q = return to main menu (continuing in 5s)"
+if errorlevel 2 exit /b 1
+exit /b 0
 
+:RUN_SOURCE_DONE
 call :CHECK_QUIT
 if errorlevel 1 exit /b 1
 exit /b 0
@@ -266,17 +281,14 @@ if errorlevel 1 (
 exit /b 0
 
 :GET_PLAYLIST_ARGS
-rem %1 = url, %2 = CAP or DIG. Sets PLAYLIST_ARGS, and DIG_ACTIVE when digging.
+rem %1 = url, %2 = CAP or DIG. Sets PLAYLIST_ARGS, or DIG_ACTIVE when digging
+rem (dig_source.ps1 builds its own yt-dlp arguments).
 set "TARGET_URL=%~1"
 set "DIG_ACTIVE="
 set "PLAYLIST_ARGS="
 if /I "%TARGET_URL%"=="%FULL_DOWNLOAD_URL%" exit /b 0
 if /I "%TARGET_URL%"=="%FULL_DOWNLOAD_URL%/" exit /b 0
 if /I "%~2"=="DIG" (
-    rem --no-playlist-reverse overrides yt-dlp.conf so digging starts at the
-    rem newest track; --max-downloads counts only real downloads, not archive
-    rem skips, DRM failures or filtered tracks.
-    set "PLAYLIST_ARGS=--max-downloads %NEW_TRACK_TARGET% --playlist-end %DIG_LOOKBACK% --no-playlist-reverse"
     set "DIG_ACTIVE=1"
 ) else (
     set "PLAYLIST_ARGS=--playlist-end %SOURCE_CAP%"
