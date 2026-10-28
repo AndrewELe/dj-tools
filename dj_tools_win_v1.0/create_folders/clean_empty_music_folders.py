@@ -2,6 +2,8 @@ from pathlib import Path
 import sys
 from typing import Optional
 
+from genre_layout import ENERGY_LEVELS, GENRE_FOLDERS, GENRES, NEW_FOLDER
+
 AUDIO_EXTENSIONS = {
     ".mp3",
     ".wav",
@@ -12,40 +14,6 @@ AUDIO_EXTENSIONS = {
     ".aac",
     ".ogg",
 }
-
-ENERGY_LEVELS = ["high", "mid", "low"]
-
-SIMPLE_GENRES = [
-    "afro house",
-    "breaks",
-    "dnb",
-    "dubstep",
-    "happy hardcore, jumpcore",
-    "minimal, deep tech",
-    "organic house, downtempo",
-    "techno",
-    "trance",
-    "trap",
-    "uk bass",
-    "other",
-]
-
-GROUPED_GENRES = {
-    "house": [
-        "deep house",
-        "tech house",
-        "melodic house, techno",
-    ],
-    "hardstyle": [
-        "hard dance",
-        "hard techno",
-    ],
-    "progressive": [
-        "progressive house",
-        "progressive trance",
-    ],
-}
-
 
 def normalize_input_path(raw_input: str) -> str:
     return raw_input.strip().strip('"').strip("'")
@@ -59,25 +27,13 @@ def contains_music(folder: Path) -> bool:
 
 
 def build_protected_relative_paths() -> set[Path]:
-    protected: set[Path] = set()
+    protected: set[Path] = {Path(NEW_FOLDER)}
 
-    for genre in SIMPLE_GENRES:
-        g = Path(genre)
+    for folder in GENRE_FOLDERS.values():
+        g = Path(folder)
         protected.add(g)
         for lvl in ENERGY_LEVELS:
             protected.add(g / lvl)
-
-    for parent, subs in GROUPED_GENRES.items():
-        p = Path(parent)
-        protected.add(p)
-        for lvl in ENERGY_LEVELS:
-            protected.add(p / lvl)
-
-        for sub in subs:
-            s = p / sub
-            protected.add(s)
-            for lvl in ENERGY_LEVELS:
-                protected.add(s / lvl)
 
     return protected
 
@@ -207,26 +163,14 @@ def apply_actions(actions: list[tuple[str, Path, Optional[Path]]]) -> dict[str, 
     return results
 
 
-def find_notables_file(parent: Path) -> Optional[Path]:
-    candidates = sorted(parent.glob("* notables.txt"))
-    return candidates[0] if candidates else None
+def find_notables_file(library: Path) -> Optional[Path]:
+    # One notables file per session builds up in the library, so take the
+    # most recently edited.
+    candidates = [p for p in library.glob("* notables*.txt") if ".pruned" not in p.name]
+    return max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
 
 
-def section_to_folder_map() -> dict[str, Path]:
-    mapping: dict[str, Path] = {}
-
-    for genre in SIMPLE_GENRES:
-        mapping[genre] = Path(genre)
-
-    for parent, subs in GROUPED_GENRES.items():
-        mapping[parent] = Path(parent)
-        for sub in subs:
-            mapping[sub] = Path(parent) / sub
-
-    return mapping
-
-
-SECTION_FOLDER_MAP = section_to_folder_map()
+SECTION_FOLDER_MAP = {genre: Path(GENRE_FOLDERS[genre]) for genre in GENRES}
 SECTION_NAMES = set(SECTION_FOLDER_MAP.keys())
 
 
@@ -289,8 +233,8 @@ def _read_text_robust(path: Path) -> str:
             return path.read_text(encoding="utf-8", errors="replace")
 
 
-def prune_notables_file(parent_of_crate: Path, crate_root: Path) -> Optional[Path]:
-    source_file = find_notables_file(parent_of_crate)
+def prune_notables_file(crate_root: Path) -> Optional[Path]:
+    source_file = find_notables_file(crate_root)
     if source_file is None:
         print("\nNo notables file found. Skipping notables prune.")
         return None
@@ -390,8 +334,7 @@ def main() -> None:
         print("Returning to menu.")
         return
     if prune_choice == "y":
-        parent_of_crate = root.parent
-        prune_notables_file(parent_of_crate, root)
+        prune_notables_file(root)
 
     if len(sys.argv) == 1:
         input("\nPress Enter to exit...")

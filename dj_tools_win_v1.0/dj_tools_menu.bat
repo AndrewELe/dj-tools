@@ -10,7 +10,7 @@ echo ==========================================
 echo DJ Tools Menu
 echo ==========================================
 echo.
-echo 1. Build new dated crate tree
+echo 1. Build / update genre folders
 echo 2. Clean / mark empty folders
 echo 3. Run crate digger
 echo 4. Dedupe audio (find duplicate MP3s)
@@ -47,12 +47,15 @@ goto menu
 :build
 cls
 echo ==========================================
-echo Build New Dated Crate Tree
+echo Build / Update Genre Folders
 echo ==========================================
+echo.
+echo Creates any missing genre folders in your music library and offers
+echo to move tracks out of old dated "sorted" folders into them.
 echo.
 
 set "PARENT_PATH="
-set /p "PARENT_PATH=Enter the parent folder path (example: D:\), or Q to return to menu: "
+set /p "PARENT_PATH=Enter your music library folder (example: E:\ for a USB stick), or Q to return to menu: "
 
 if defined PARENT_PATH set "PARENT_PATH=!PARENT_PATH:"=!"
 
@@ -66,7 +69,7 @@ if not defined PARENT_PATH (
 
 echo.
 py "%ROOT_DIR%\create_folders\make_music_paths.py" "!PARENT_PATH!"
-call :report_exit "Build crate tree" %ERRORLEVEL%
+call :report_exit "Build genre folders" %ERRORLEVEL%
 goto return_to_menu
 
 :clean

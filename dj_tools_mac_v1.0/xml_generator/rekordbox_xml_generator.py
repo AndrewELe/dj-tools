@@ -169,10 +169,10 @@ def detect_os_label() -> str:
 def prompt_for_scan_mode() -> str | None:
     while True:
         print("Choose scan mode:")
-        print("1) Single sorted folder")
-        print("   Example: sorted 3.25.26")
-        print("2) Parent folder containing multiple sorted folders")
-        print("   Example: sorted/")
+        print("1) Music library (genre folders like 10 techno at the top)")
+        print("   Example: your USB stick or music folder")
+        print("2) Parent folder containing several libraries")
+        print("   Example: a folder holding old dated 'sorted' folders")
         user_input = input("Enter 1 or 2 (or Q to return to menu): ").strip().lower()
 
         if user_input == "q":
@@ -467,7 +467,7 @@ def scan_music_root(root_path: Path, scan_mode: str) -> ScanResult:
     result = ScanResult(root_path=root_path, scan_mode=scan_mode)
 
     if scan_mode == "single":
-        log_info(result.log_lines, "Scan mode: single sorted folder")
+        log_info(result.log_lines, "Scan mode: music library")
         playlists, tracks, _ = scan_library_root(
             library_root=root_path,
             display_root=root_path,
@@ -723,8 +723,8 @@ def main() -> int:
     print("Rekordbox XML Generator")
     print("-----------------------")
     print("Supports:")
-    print("  1. Single sorted folder")
-    print("  2. Parent folder containing multiple sorted folders")
+    print("  1. Music library")
+    print("  2. Parent folder containing several libraries")
     print()
 
     scan_mode = prompt_for_scan_mode()

@@ -69,7 +69,7 @@ prompt to back out to the main menu without making changes.
 
 ## Menu options
 
-1. Build new dated crate tree
+1. Build / update genre folders
 2. Clean / mark empty folders
 3. Run crate digger
 4. Dedupe audio (find duplicate MP3s)

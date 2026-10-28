@@ -7,7 +7,7 @@ Run that file, then choose a number from the menu.
 
 The menu now has 11 options:
 
-1. Build new dated crate tree
+1. Build / update genre folders
 2. Clean / mark empty folders
 3. Run crate digger
 4. Dedupe audio (find duplicate MP3s)
@@ -23,24 +23,26 @@ You can press `Q` at any prompt to return to the main menu without making change
 
 ## Most Common Tasks
 
-### 1. Make a New Crate Folder
+### 1. Set Up Your Genre Folders
 
 Choose:
-`1. Build new dated crate tree`
+`1. Build / update genre folders`
 
 Enter:
-The parent folder where you want the new crate created.
+Your music library folder, usually the root of your USB stick.
 
 Example:
-`D:\`
+`E:\`
 
 What it makes:
 
-- A new dated crate folder like `sorted 3.22.26`
-- A matching notables file
+- Numbered genre folders like `10 techno`, each with `high`, `mid`, `low` inside, ordered slowest to fastest
+- A `00 new` inbox for tracks you haven't filed yet
+- A notables file for the session
+- If old dated `sorted 3.22.26` folders are in there, it offers to move their tracks into the new folders (with a preview first)
 
 Use this when:
-You are starting a fresh sorting session.
+You are setting up a USB stick or starting a fresh sorting session. It only adds folders that are missing, so it's safe to run any time.
 
 ## 2. Clean Up Empty Folders
 
@@ -229,7 +231,7 @@ You want to turn a folder tree like `Root / Genre / high|mid|low / tracks` into 
 
 What it does:
 
-- Asks whether you have a single sorted folder or a parent containing multiple sorted folders
+- Asks whether you're pointing it at your music library or a parent folder containing several libraries
 - Prompts for your music root folder
 - Scans the folder tree
 - Creates a revisioned XML file in that root folder

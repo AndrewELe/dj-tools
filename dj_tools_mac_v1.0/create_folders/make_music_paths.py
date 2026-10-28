@@ -4,48 +4,14 @@ import sys
 import subprocess
 import platform
 
-
-ENERGY_LEVELS = ["high", "mid", "low"]
-
-SIMPLE_GENRES = [
-    "afro house",
-    "breaks",
-    "dnb",
-    "dubstep",
-    "happy hardcore, jumpcore",
-    "minimal, deep tech",
-    "organic house, downtempo",
-    "techno",
-    "trance",
-    "trap",
-    "uk bass",
-    "other",
-]
-
-GROUPED_GENRES = {
-    "house": [
-        "deep house",
-        "tech house",
-        "melodic house, techno",
-    ],
-    "hardstyle": [
-        "hard dance",
-        "hard techno",
-    ],
-    "progressive": [
-        "progressive house",
-        "progressive trance",
-    ],
-}
-
-
-def get_today_folder_name() -> str:
-    now = datetime.now()
-    if platform.system() == "Windows":
-        date_str = now.strftime("%#m.%#d.%y")
-    else:
-        date_str = now.strftime("%-m.%-d.%y")
-    return f"sorted {date_str}"
+from genre_layout import (
+    EMPTY_SUFFIX,
+    ENERGY_LEVELS,
+    GENRE_FOLDERS,
+    GENRES,
+    NEW_FOLDER,
+)
+import migrate_old_folders
 
 
 def get_notables_filename() -> str:
@@ -53,22 +19,28 @@ def get_notables_filename() -> str:
     return f"{date_str} notables.txt"
 
 
-def create_folder_with_energy(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
+def ensure_folder(path: Path) -> bool:
+    """
+    Create path unless it, or a copy marked " (empty)" by
+    clean_empty_music_folders.py, already exists. Returns True if created.
+    """
+    if path.exists() or path.with_name(path.name + EMPTY_SUFFIX).exists():
+        return False
+    path.mkdir(parents=True)
+    return True
+
+
+def existing_folder(path: Path) -> Path:
+    marked = path.with_name(path.name + EMPTY_SUFFIX)
+    return marked if not path.exists() and marked.exists() else path
+
+
+def create_folder_with_energy(path: Path) -> int:
+    created = int(ensure_folder(path))
+    path = existing_folder(path)
     for level in ENERGY_LEVELS:
-        (path / level).mkdir(exist_ok=True)
-
-
-def unique_dated_folder(parent: Path) -> Path:
-    base_name = get_today_folder_name()
-    candidate = parent / base_name
-
-    counter = 1
-    while candidate.exists():
-        candidate = parent / f"{base_name} ({counter})"
-        counter += 1
-
-    return candidate
+        created += ensure_folder(path / level)
+    return created
 
 
 def unique_notables_file(parent: Path) -> Path:
@@ -107,17 +79,6 @@ def normalize_input_path(raw_input: str) -> str:
     return raw_input.strip().strip('"').strip("'")
 
 
-def get_notables_sections() -> list[str]:
-    sections: list[str] = []
-    sections.extend(SIMPLE_GENRES)
-
-    for parent_genre, subgenres in GROUPED_GENRES.items():
-        sections.append(parent_genre)
-        sections.extend(subgenres)
-
-    return sections
-
-
 def build_notables_content() -> str:
     today_display = datetime.now().strftime("%m.%d.%Y")
 
@@ -132,7 +93,7 @@ def build_notables_content() -> str:
         "",
     ]
 
-    for genre in get_notables_sections():
+    for genre in GENRES:
         lines.append("")
         lines.append(genre)
         lines.append("")
@@ -142,64 +103,65 @@ def build_notables_content() -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def create_notables_file(parent_path: Path) -> Path:
-    notables_path = unique_notables_file(parent_path)
+def create_notables_file(library_path: Path) -> Path:
+    notables_path = unique_notables_file(library_path)
     content = build_notables_content()
     notables_path.write_text(content, encoding="utf-8")
     return notables_path
 
 
-def build_structure(parent_path: Path) -> tuple[Path, Path]:
-    final_base_path = unique_dated_folder(parent_path)
-    final_base_path.mkdir(parents=True, exist_ok=False)
+def build_structure(library_path: Path) -> int:
+    """Create whichever genre and energy folders are missing. Returns how many."""
+    created = int(ensure_folder(library_path / NEW_FOLDER))
 
-    for genre in SIMPLE_GENRES:
-        create_folder_with_energy(final_base_path / genre)
+    for genre in GENRES:
+        created += create_folder_with_energy(library_path / GENRE_FOLDERS[genre])
 
-    for parent_genre, subgenres in GROUPED_GENRES.items():
-        parent_folder = final_base_path / parent_genre
-        create_folder_with_energy(parent_folder)
-
-        for subgenre in subgenres:
-            create_folder_with_energy(parent_folder / subgenre)
-
-    notables_file = create_notables_file(parent_path)
-    return final_base_path, notables_file
+    return created
 
 
 def main() -> None:
     if len(sys.argv) > 1:
-        parent_input = sys.argv[1]
+        library_input = sys.argv[1]
     else:
-        parent_input = input("Enter the parent folder path (or Q to return to menu): ")
+        library_input = input("Enter your music library folder (or Q to return to menu): ")
 
-    parent_input = normalize_input_path(parent_input)
+    library_input = normalize_input_path(library_input)
 
-    if parent_input.lower() == "q":
+    if library_input.lower() == "q":
         print("Returning to menu.")
         return
 
-    if not parent_input:
-        print("Error: no parent folder path entered.")
+    if not library_input:
+        print("Error: no library folder path entered.")
         sys.exit(1)
 
-    parent_path = Path(parent_input)
+    library_path = Path(library_input)
 
-    if not parent_path.exists():
-        print(f"Error: path does not exist: {parent_path}")
+    if not library_path.exists():
+        print(f"Error: path does not exist: {library_path}")
         sys.exit(1)
 
-    if not parent_path.is_dir():
-        print(f"Error: path is not a folder: {parent_path}")
+    if not library_path.is_dir():
+        print(f"Error: path is not a folder: {library_path}")
         sys.exit(1)
+
+    library_path = library_path.resolve()
 
     try:
-        created_path, notables_file = build_structure(parent_path)
-        print("\nDone. Folder tree created successfully:")
-        print(created_path)
+        created = build_structure(library_path)
+        print("\nDone. Genre folders are ready in:")
+        print(library_path)
+        print(f"Folders created: {created}")
+
+        # Old dated crate trees and folders from an older numbering, sitting
+        # in the same library. Previews and asks before moving anything.
+        migrate_old_folders.run(library_path, library_path)
+
+        notables_file = create_notables_file(library_path)
         print("\nNotables file created:")
         print(notables_file)
-        open_folder(created_path)
+        open_folder(library_path)
     except Exception as e:
         print(f"\nError: {e}")
         sys.exit(1)

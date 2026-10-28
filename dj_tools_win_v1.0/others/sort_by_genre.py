@@ -4,24 +4,21 @@ Sort By Genre
 -------------
 
 Purpose:
-    Read the genre metadata from every MP3 sitting directly in a folder and
-    move each track into a subfolder named after its genre.
+    Read the genre metadata from every MP3 sitting directly in a folder, or in
+    its "00 new" inbox, and move each track into the numbered genre folder for
+    its genre.
 
-    Genres are mapped onto the same taxonomy make_music_paths.py builds, so the
-    folders this creates line up with the rest of the toolkit:
+    Genres and folder numbers come from create_folders/genre_layout.py, the
+    same layout make_music_paths.py builds:
 
-        afro house              house/
-        breaks                      deep house/
-        dnb                         tech house/
-        dubstep                     melodic house, techno/
-        happy hardcore, jumpcore
-        minimal, deep tech      hardstyle/
-        organic house, downtempo    hard dance/
-        techno                      hard techno/
-        trance
-        trap                    progressive/
-        uk bass                     progressive house/
-                                    progressive trance/
+        00 new/                 07 tech house/          14 dubstep/
+        01 downtempo, organic/  08 minimal, deep tech/  15 trap/
+        02 afro house/          09 breaks/              16 hard techno/
+        03 deep house/          10 techno/              17 hard dance/
+        04 melodic house/       11 prog trance/         18 hardstyle/
+        05 prog house/          12 trance/              19 dnb/
+        06 house/               13 ukg, bass house/     20 happy hardcore/
+                                                        21 other/
 
 Why the mapping is so forgiving:
     These tags come from SoundCloud uploaders by way of yt-dlp, not from
@@ -38,7 +35,7 @@ Why the mapping is so forgiving:
     comma/slash-separated part, then the longest known genre appearing anywhere
     in it as a whole word.
 
-What lands in "to organize":
+What lands in "00 new":
     - Files with no genre frame at all (51 of 556 in that same library).
     - SoundCloud's catch-all defaults: "Dance & EDM" (56 files), "Electronic"
       (30), "Dance". These are tags, but they say nothing worth filing on.
@@ -49,12 +46,14 @@ What lands in "to organize":
     supporting can be added to GENRE_ALIASES below.
 
 Scope:
-    Only MP3s sitting directly in the folder are touched. Anything already in a
-    subfolder is left alone, so re-running is safe.
+    Only MP3s sitting directly in the folder or directly in its "00 new" folder
+    are touched. Anything already in a genre folder is left alone, and tracks
+    that still can't be placed stay in "00 new", so re-running is safe.
 
 Typical use:
-    Run gather_all_music.ps1 first to flatten everything into "All Music",
-    then run this to split that flat pile into genre folders.
+    Drop new downloads into "00 new" in your library and run this on the
+    library. Or run gather_all_music.ps1 first to flatten everything into
+    "All Music", then run this to split that flat pile into genre folders.
 
 Examples:
     py sort_by_genre.py "C:\\Music\\SoundCloud\\All Music" --dry-run
@@ -83,160 +82,157 @@ except ImportError:
     )
     raise SystemExit(1)
 
+# The genre list lives with the folder tools so every script agrees on it.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "create_folders"))
+from genre_layout import ENERGY_LEVELS, GENRE_FOLDERS, NEW_FOLDER  # noqa: E402
+
 
 AUDIO_EXTENSION = ".mp3"
 
-# Energy folders the Rekordbox XML generator expects inside each genre folder.
-ENERGY_LEVELS = ["high", "mid", "low"]
+# Where untagged and unrecognized tracks land.
+UNSORTED_FOLDER = NEW_FOLDER
 
-# Where untagged and unrecognized tracks land. Lowercase on purpose so it sits
-# with the genre folders rather than above them.
-UNSORTED_FOLDER = "to organize"
-
-# Maps a normalized genre tag to the folder path it belongs in. Values are
-# folder segments, so ("house", "deep house") means house/deep house.
+# Maps a normalized genre tag to the genre it's filed under. Genres are the
+# names in create_folders/genre_layout.py, which supplies the folder number.
 #
 # Keys must already be normalized the way normalize_genre() normalizes tags:
 # lowercase, "&" spelled out as "and", every other punctuation mark collapsed to
 # a single space. That is why entries look like "drum and bass" rather than
 # "Drum & Bass", and why Beatport's combined names lose their slashes
 # ("techno peak time driving" is the tag "Techno (Peak Time / Driving)").
-GENRE_ALIASES: dict[str, tuple[str, ...]] = {
+GENRE_ALIASES: dict[str, str] = {
     # afro house
-    "afro house": ("afro house",),
-    "afro tech": ("afro house",),
-    "afrobeat": ("afro house",),
-    "amapiano": ("afro house",),
+    "afro house": "afro house",
+    "afro tech": "afro house",
+    "afrobeat": "afro house",
+    "amapiano": "afro house",
     # breaks
-    "breaks": ("breaks",),
-    "breakbeat": ("breaks",),
-    "breakbeats": ("breaks",),
-    "breaks breakbeat uk bass": ("breaks",),
-    "nu skool breaks": ("breaks",),
-    "big beat": ("breaks",),
+    "breaks": "breaks",
+    "breakbeat": "breaks",
+    "breakbeats": "breaks",
+    "breaks breakbeat uk bass": "breaks",
+    "nu skool breaks": "breaks",
+    "big beat": "breaks",
     # dnb
-    "dnb": ("dnb",),
-    "d and b": ("dnb",),
-    "drum and bass": ("dnb",),
-    "drum n bass": ("dnb",),
-    "drumandbass": ("dnb",),
-    "drumnbass": ("dnb",),
-    "liquid dnb": ("dnb",),
-    "liquid drum and bass": ("dnb",),
-    "neurofunk": ("dnb",),
-    "jump up": ("dnb",),
-    "halftime": ("dnb",),
-    "drumstep": ("dnb",),
-    "jungle": ("dnb",),
+    "dnb": "dnb",
+    "d and b": "dnb",
+    "drum and bass": "dnb",
+    "drum n bass": "dnb",
+    "drumandbass": "dnb",
+    "drumnbass": "dnb",
+    "liquid dnb": "dnb",
+    "liquid drum and bass": "dnb",
+    "neurofunk": "dnb",
+    "jump up": "dnb",
+    "halftime": "dnb",
+    "drumstep": "dnb",
+    "jungle": "dnb",
     # dubstep
-    "dubstep": ("dubstep",),
-    "riddim": ("dubstep",),
-    "brostep": ("dubstep",),
-    "melodic dubstep": ("dubstep",),
-    "deep dubstep": ("dubstep",),
-    "tearout": ("dubstep",),
-    "colour bass": ("dubstep",),
-    # happy hardcore, jumpcore
-    "happy hardcore": ("happy hardcore, jumpcore",),
-    "jumpcore": ("happy hardcore, jumpcore",),
-    "hardcore": ("happy hardcore, jumpcore",),
-    "uk hardcore": ("happy hardcore, jumpcore",),
-    "uptempo": ("happy hardcore, jumpcore",),
-    "uptempo hardcore": ("happy hardcore, jumpcore",),
-    "frenchcore": ("happy hardcore, jumpcore",),
-    "gabber": ("happy hardcore, jumpcore",),
+    "dubstep": "dubstep",
+    "riddim": "dubstep",
+    "brostep": "dubstep",
+    "melodic dubstep": "dubstep",
+    "deep dubstep": "dubstep",
+    "tearout": "dubstep",
+    "colour bass": "dubstep",
+    # happy hardcore
+    "happy hardcore": "happy hardcore",
+    "jumpcore": "happy hardcore",
+    "hardcore": "happy hardcore",
+    "uk hardcore": "happy hardcore",
+    "uptempo": "happy hardcore",
+    "uptempo hardcore": "happy hardcore",
+    "frenchcore": "happy hardcore",
+    "gabber": "happy hardcore",
     # minimal, deep tech
-    "minimal": ("minimal, deep tech",),
-    "deep tech": ("minimal, deep tech",),
-    "minimal deep tech": ("minimal, deep tech",),
-    "minimal techno": ("minimal, deep tech",),
-    "microhouse": ("minimal, deep tech",),
-    # organic house, downtempo
-    "organic house": ("organic house, downtempo",),
-    "organic house downtempo": ("organic house, downtempo",),
-    "downtempo": ("organic house, downtempo",),
-    "chill out": ("organic house, downtempo",),
-    "ambient": ("organic house, downtempo",),
-    "balearic": ("organic house, downtempo",),
-    "lounge": ("organic house, downtempo",),
+    "minimal": "minimal, deep tech",
+    "deep tech": "minimal, deep tech",
+    "minimal deep tech": "minimal, deep tech",
+    "minimal techno": "minimal, deep tech",
+    "microhouse": "minimal, deep tech",
+    # downtempo, organic
+    "organic house": "downtempo, organic",
+    "organic house downtempo": "downtempo, organic",
+    "downtempo": "downtempo, organic",
+    "chill out": "downtempo, organic",
+    "ambient": "downtempo, organic",
+    "balearic": "downtempo, organic",
+    "lounge": "downtempo, organic",
     # techno
-    "techno": ("techno",),
-    "techno peak time driving": ("techno",),
-    "peak time techno": ("techno",),
-    "driving techno": ("techno",),
-    "techno raw deep hypnotic": ("techno",),
-    "raw techno": ("techno",),
-    "hypnotic techno": ("techno",),
-    "detroit techno": ("techno",),
-    "acid techno": ("techno",),
-    "dub techno": ("techno",),
-    "industrial techno": ("techno",),
+    "techno": "techno",
+    "techno peak time driving": "techno",
+    "peak time techno": "techno",
+    "driving techno": "techno",
+    "techno raw deep hypnotic": "techno",
+    "raw techno": "techno",
+    "hypnotic techno": "techno",
+    "detroit techno": "techno",
+    "acid techno": "techno",
+    "dub techno": "techno",
+    "industrial techno": "techno",
     # trance
-    "trance": ("trance",),
-    "trance main floor": ("trance",),
-    "psy trance": ("trance",),
-    "psytrance": ("trance",),
-    "psychedelic trance": ("trance",),
-    "goa trance": ("trance",),
-    "uplifting trance": ("trance",),
-    "vocal trance": ("trance",),
-    "tech trance": ("trance",),
-    "hard trance": ("trance",),
+    "trance": "trance",
+    "trance main floor": "trance",
+    "psy trance": "trance",
+    "psytrance": "trance",
+    "psychedelic trance": "trance",
+    "goa trance": "trance",
+    "uplifting trance": "trance",
+    "vocal trance": "trance",
+    "tech trance": "trance",
+    "hard trance": "trance",
     # trap
-    "trap": ("trap",),
-    "trap wave": ("trap",),
-    "hybrid trap": ("trap",),
-    "festival trap": ("trap",),
-    # uk bass
-    "uk bass": ("uk bass",),
-    "bassline": ("uk bass",),
-    "uk garage": ("uk bass",),
-    "uk garage bassline": ("uk bass",),
-    "garage": ("uk bass",),
-    "2 step": ("uk bass",),
-    "speed garage": ("uk bass",),
-    "future bass": ("uk bass",),
-    "grime": ("uk bass",),
+    "trap": "trap",
+    "trap wave": "trap",
+    "hybrid trap": "trap",
+    "festival trap": "trap",
+    # ukg, bass house
+    "uk bass": "ukg, bass house",
+    "bassline": "ukg, bass house",
+    "uk garage": "ukg, bass house",
+    "uk garage bassline": "ukg, bass house",
+    "garage": "ukg, bass house",
+    "2 step": "ukg, bass house",
+    "speed garage": "ukg, bass house",
+    "bass house": "ukg, bass house",
     # house
-    "house": ("house",),
-    "bass house": ("house",),
-    "jackin house": ("house",),
-    "electro house": ("house",),
-    "future house": ("house",),
-    "funky house": ("house",),
-    "soulful house": ("house",),
-    "disco house": ("house",),
-    "acid house": ("house",),
-    "classic house": ("house",),
-    "nu disco": ("house",),
-    "nu disco disco": ("house",),
-    "big room": ("house",),
-    "big room house": ("house",),
-    "deep house": ("house", "deep house"),
-    "tech house": ("house", "tech house"),
+    "house": "house",
+    "jackin house": "house",
+    "electro house": "house",
+    "future house": "house",
+    "funky house": "house",
+    "soulful house": "house",
+    "disco house": "house",
+    "acid house": "house",
+    "classic house": "house",
+    "nu disco": "house",
+    "nu disco disco": "house",
+    "big room": "house",
+    "big room house": "house",
+    "deep house": "deep house",
+    "tech house": "tech house",
     # "Melodic" on its own is always melodic house/techno in this kind of
     # library; it never shows up meaning melodic dubstep or melodic dnb, which
     # carry those full names instead.
-    "melodic": ("house", "melodic house, techno"),
-    "melodic house": ("house", "melodic house, techno"),
-    "melodic techno": ("house", "melodic house, techno"),
-    "melodictechno": ("house", "melodic house, techno"),
-    "melodic house and techno": ("house", "melodic house, techno"),
+    "melodic": "melodic house",
+    "melodic house": "melodic house",
+    "melodic techno": "melodic house",
+    "melodictechno": "melodic house",
+    "melodic house and techno": "melodic house",
     # hardstyle
-    "hardstyle": ("hardstyle",),
-    "rawstyle": ("hardstyle",),
-    "raw hardstyle": ("hardstyle",),
-    "euphoric hardstyle": ("hardstyle",),
-    "hardstyle hardcore": ("hardstyle",),
-    "hard dance": ("hardstyle", "hard dance"),
-    "hard dance hardcore": ("hardstyle", "hard dance"),
-    "hard techno": ("hardstyle", "hard techno"),
+    "hardstyle": "hardstyle",
+    "rawstyle": "hardstyle",
+    "raw hardstyle": "hardstyle",
+    "euphoric hardstyle": "hardstyle",
+    "hardstyle hardcore": "hardstyle",
+    "hard dance": "hard dance",
+    "hard dance hardcore": "hard dance",
+    "hard techno": "hard techno",
     # progressive
-    "progressive": ("progressive",),
-    "progressive house": ("progressive", "progressive house"),
-    "prog house": ("progressive", "progressive house"),
-    "progressive trance": ("progressive", "progressive trance"),
-    "prog trance": ("progressive", "progressive trance"),
+    "progressive house": "prog house",
+    "prog house": "prog house",
+    "progressive trance": "prog trance",
+    "prog trance": "prog trance",
 }
 
 # Longest alias first, so substring matching picks "tech house" over "house"
@@ -246,7 +242,7 @@ ALIASES_BY_LENGTH = sorted(GENRE_ALIASES, key=len, reverse=True)
 # Tags that technically say something but are too broad to file on. "Dance &
 # EDM" is what SoundCloud stamps on an upload when the artist picks nothing, so
 # it means "untagged" in practice. These are treated as a missing tag so they
-# surface in "to organize" rather than getting a bad guess.
+# surface in "00 new" rather than getting a bad guess.
 GENERIC_TAGS = {
     "",
     "edm",
@@ -353,17 +349,17 @@ def resolve_genre_path(raw_genre: str) -> Optional[tuple[str, ...]]:
         return None
 
     if whole in GENRE_ALIASES:
-        return GENRE_ALIASES[whole]
+        return (GENRE_FOLDERS[GENRE_ALIASES[whole]],)
 
     for part in re.split(r"[/,;|]", raw_genre):
         normalized = normalize_genre(part)
         if normalized in GENRE_ALIASES:
-            return GENRE_ALIASES[normalized]
+            return (GENRE_FOLDERS[GENRE_ALIASES[normalized]],)
 
     padded = f" {whole} "
     for alias in ALIASES_BY_LENGTH:
         if f" {alias} " in padded:
-            return GENRE_ALIASES[alias]
+            return (GENRE_FOLDERS[GENRE_ALIASES[alias]],)
 
     return None
 
@@ -389,8 +385,8 @@ def print_mapping() -> None:
     print("\nGenre tag -> folder")
     print("-" * 60)
     by_folder: dict[str, list[str]] = {}
-    for alias, segments in GENRE_ALIASES.items():
-        by_folder.setdefault("/".join(segments), []).append(alias)
+    for alias, genre in GENRE_ALIASES.items():
+        by_folder.setdefault(GENRE_FOLDERS[genre], []).append(alias)
     for folder in sorted(by_folder):
         print(f"\n{folder}/")
         for alias in sorted(by_folder[folder]):
@@ -460,10 +456,17 @@ def main() -> int:
 
     root = root.resolve()
 
-    # Only files sitting directly in the folder. Tracks already inside a genre
-    # folder have been sorted, which makes re-running a no-op.
+    # Only files sitting directly in the folder or its inbox. Tracks already
+    # inside a genre folder have been sorted, which makes re-running a no-op.
+    inbox = root / UNSORTED_FOLDER
     files = sorted(
-        (p for p in root.iterdir() if p.is_file() and p.suffix.lower() == AUDIO_EXTENSION),
+        (
+            p
+            for folder in (root, inbox)
+            if folder.is_dir()
+            for p in folder.iterdir()
+            if p.is_file() and p.suffix.lower() == AUDIO_EXTENSION
+        ),
         key=lambda p: p.name.lower(),
     )
 
@@ -476,7 +479,7 @@ def main() -> int:
     print()
 
     if not files:
-        print(f"No MP3s found directly in {root}. Nothing to do.")
+        print(f"No MP3s found directly in {root} or {inbox.name}/. Nothing to do.")
         print()
         print("=== SORT BY GENRE END ===")
         return 0
@@ -508,6 +511,11 @@ def main() -> int:
             display_folder = "/".join(segments)
             destination = root.joinpath(*segments) / path.name
 
+            if destination == path:
+                # Already in the inbox and still can't be placed.
+                folder_counts[display_folder] += 1
+                continue
+
             if destination.exists():
                 print(f"[SKIP] {path.name} -> {display_folder}/ (name already taken)")
                 skipped_count += 1
@@ -518,7 +526,7 @@ def main() -> int:
             if args.dry_run:
                 print(f"[DRY-RUN] {display_folder}/ <- {path.name}  [{label}]")
             else:
-                ensure_folder(root, segments, args.with_energy)
+                ensure_folder(root, segments, args.with_energy and placed)
                 path.rename(destination)
                 print(f"[MOVE] {display_folder}/ <- {path.name}  [{label}]")
 
@@ -557,7 +565,7 @@ def main() -> int:
             print(f"    {count:>4}  {shown!r}")
         print()
         print("    Worth filing automatically? Add it to GENRE_ALIASES in")
-        print("    sort_by_genre.py and re-run on the 'to organize' folder.")
+        print("    sort_by_genre.py and re-run to sort the '00 new' folder.")
 
     if not args.dry_run and folder_counts and not args.with_energy:
         print()

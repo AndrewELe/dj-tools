@@ -88,7 +88,7 @@ while true; do
     echo "DJ Tools Menu (macOS)"
     echo "=========================================="
     echo
-    echo "1. Build new dated crate tree"
+    echo "1. Build / update genre folders"
     echo "2. Clean / mark empty folders"
     echo "3. Run crate digger"
     echo "4. Dedupe audio (find duplicate MP3s)"
@@ -106,20 +106,23 @@ while true; do
     case "$CHOICE_L" in
         q|11) exit 0 ;;
 
-        1)  # Build new dated crate tree
+        1)  # Build / update genre folders
             clear
             echo "=========================================="
-            echo "Build New Dated Crate Tree"
+            echo "Build / Update Genre Folders"
             echo "=========================================="
             echo
-            read -r -p "Enter the parent folder path (example: ~/Music), or Q to return to menu: " P
+            echo "Creates any missing genre folders in your music library and offers"
+            echo "to move tracks out of old dated \"sorted\" folders into them."
+            echo
+            read -r -p "Enter your music library folder (example: /Volumes/USB), or Q to return to menu: " P
             P="$(strip_quotes "$P")"
             [ "$(lower "$P")" = "q" ] && continue
             if [ -z "$P" ]; then echo; echo "No path entered."; return_to_menu; continue; fi
             require_python || { return_to_menu; continue; }
             echo
             "$SYS_PY" "$ROOT_DIR/create_folders/make_music_paths.py" "$P"
-            report_exit "Build crate tree" $?
+            report_exit "Build genre folders" $?
             return_to_menu
             ;;
 

@@ -6,7 +6,7 @@ rem Builds a Rekordbox XML from a genre-sorted folder, the layout
 rem sort_by_genre.py produces, where tracks sit directly in their genre folder
 rem instead of inside high/mid/low energy folders.
 rem
-rem For the dated crate tree with energy folders, use the "Rekordbox XML
+rem For a library where every track is in an energy folder, use the "Rekordbox XML
 rem generator" option in dj_tools_menu.bat instead.
 
 set "SCRIPT_DIR=%~dp0"

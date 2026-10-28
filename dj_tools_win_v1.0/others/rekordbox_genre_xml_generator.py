@@ -8,31 +8,29 @@ Purpose:
     file that recreates the folder structure as playlists.
 
     This is the companion to xml_generator/rekordbox_xml_generator.py. That one
-    expects the dated crate tree, where every track lives in an energy folder:
+    only reads tracks that live in an energy folder:
 
-        sorted 3.25.26/
-            techno/
-                high/  mid/  low/
+        10 techno/
+            high/  mid/  low/
 
-    This one expects the layout sort_by_genre.py produces, where tracks live
-    directly in their genre folder and energy sorting hasn't happened yet:
+    This one also takes the layout sort_by_genre.py produces, where tracks live
+    directly in their genre folder and energy sorting may not have happened yet:
 
-        All Music/
-            dnb/                        <- 137 tracks
-            techno/                     <- 42 tracks
-            house/                      <- 72 tracks of its own, AND:
-                deep house/             <- 22 tracks
-                tech house/             <- 11 tracks
-                melodic house, techno/  <- 68 tracks
-            to organize/
+        Music/
+            00 new/                     <- 40 tracks
+            03 deep house/              <- 72 tracks of its own, AND:
+                high/                   <- 22 tracks
+                mid/                    <- 11 tracks
+            10 techno/                  <- 42 tracks
+            19 dnb/                     <- 137 tracks
 
 Rules:
     - Any folder holding audio files becomes a playlist.
     - Any folder holding subfolders becomes a playlist folder.
-    - A folder that has both (like house/ above) becomes a folder containing a
-      playlist of its own tracks, named after itself, plus its subfolders.
-      Rekordbox folders can't hold tracks directly, so those 72 house tracks
-      would otherwise be dropped.
+    - A folder that has both (like 03 deep house/ above) becomes a folder
+      containing a playlist of its own tracks, named after itself, plus its
+      subfolders. Rekordbox folders can't hold tracks directly, so those 72
+      deep house tracks would otherwise be dropped.
     - Nesting is unlimited, so pointing this at a parent folder holding several
       sorted libraries works without a separate mode.
     - high/mid/low folders are ordered by energy rather than alphabetically, so
@@ -621,7 +619,7 @@ def main() -> int:
     print("the layout sort_by_genre.py creates. Every folder holding audio")
     print("becomes a playlist, and nesting is mirrored as playlist folders.")
     print()
-    print("For the dated crate tree with high/mid/low energy folders, use")
+    print("For a library where every track is in a high/mid/low folder, use")
     print("xml_generator/rekordbox_xml_generator.py instead.")
     print()
 

@@ -2,10 +2,10 @@
 setlocal EnableDelayedExpansion
 
 rem Double-click launcher for sort_by_genre.py.
-rem Reads the genre tag on every MP3 sitting directly in the folder you give it
-rem and moves each track into a genre subfolder. Tracks with no genre, a
-rem catch-all genre like "Dance & EDM", or a genre outside the toolkit's
-rem taxonomy go into "to organize".
+rem Reads the genre tag on every MP3 sitting directly in the folder you give it,
+rem or in its "00 new" folder, and moves each track into its numbered genre
+rem folder. Tracks with no genre, a catch-all genre like "Dance & EDM", or a
+rem genre outside the toolkit's taxonomy go into "00 new".
 
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
@@ -22,9 +22,9 @@ echo ==========================================
 echo Sort By Genre
 echo ==========================================
 echo.
-echo Moves every MP3 sitting directly in a folder into a subfolder
-echo named after its genre tag, matching the genre folders that
-echo "Build new dated crate tree" creates.
+echo Moves every MP3 sitting directly in a folder, or in its "00 new"
+echo folder, into the numbered genre folder for its genre tag, matching
+echo the folders "Build / update genre folders" creates.
 echo.
 echo Tracks are only read for their tags - nothing is re-tagged.
 echo.

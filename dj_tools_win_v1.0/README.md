@@ -12,7 +12,7 @@ Open that batch file to launch the menu, then choose one of the numbered options
 
 The menu currently includes:
 
-1. Build new dated crate tree
+1. Build / update genre folders
 2. Clean / mark empty folders
 3. Run crate digger
 4. Dedupe audio (find duplicate MP3s)
@@ -45,37 +45,62 @@ Every prompt across every tool accepts `Q` to return to the main menu without ma
 
 If you type `Q` at any point, the tool stops, no files are modified, and you are returned to the main menu.
 
-## Menu Option 1: Build New Dated Crate Tree
+## Menu Option 1: Build / Update Genre Folders
 
 Purpose:
-Creates a new dated music-crate folder structure and a matching notables text file.
+Sets up your music library as numbered genre folders, one click from the root of the USB stick, so you can pick a genre straight from the CDJ folder browser. Also creates a notables text file for the session.
 
 What it asks for:
-`Enter the parent folder path (example: D:\), or Q to return to menu`
+`Enter your music library folder (example: E:\ for a USB stick), or Q to return to menu`
 
 What you should enter:
-The folder where you want the new dated crate folder to be created.
+The folder that holds (or will hold) your genre folders, usually the root of your USB stick.
 
 Example:
-`D:\`
-
-What it creates:
-
-- A folder named like `sorted 3.22.26`
-- If that name already exists, it creates `sorted 3.22.26 (1)` and so on
-- A notables file in the parent folder named like `03.22.2026 notables.txt`
+`E:\`
 
 Folder structure it creates:
 
-- Genre folders
-- Energy subfolders inside those genres: `high`, `mid`, `low`
-- Grouped genres such as `house`, `hardstyle`, and `progressive` with their own subgenres
+```
+00 new                   11 prog trance
+01 downtempo, organic    12 trance
+02 afro house            13 ukg, bass house
+03 deep house            14 dubstep
+04 melodic house         15 trap
+05 prog house            16 hard techno
+06 house                 17 hard dance
+07 tech house            18 hardstyle
+08 minimal, deep tech    19 dnb
+09 breaks                20 happy hardcore
+10 techno                21 other
+```
+
+- Genres are numbered slowest to fastest, so the list on the CDJ follows how a set builds
+- Every genre folder has energy subfolders: `high`, `mid`, `low`
+- `00 new` is the inbox for new tracks you haven't filed yet
+- Only missing folders are created, so it is safe to run again at any time
+- Folders renamed to ` (empty)` by Option 2 count as already there
+
+Moving tracks out of old folders:
+If the library still has old dated `sorted 3.22.26` folders (or genre folders from an older numbering), it previews where every track would go and asks before moving anything:
+
+- `sorted 3.22.26/house/deep house/high` goes to `03 deep house/high`
+- `uk bass` goes to `13 ukg, bass house`, `to organize` goes to `00 new`
+- A track whose name is already taken at the destination is left where it is
+- Tracks filed straight into `progressive/` (not `progressive house` or `progressive trance`) are left where they are for you to place
+- Folders left empty by the move are removed
+
+The same move can be run on its own, for example to move old folders from your computer onto the USB stick:
+`py create_folders\migrate_old_folders.py "C:\Music\old crates" E:\`
+
+Changing the genres:
+The genre list lives in `create_folders\genre_layout.py`. Edit the `GENRES` list there and every tool picks it up. The numbers follow the order of the list, and running Option 1 again moves tracks into the renumbered folders.
 
 What the notables file is for:
-A template where you can jot down standout tracks by genre.
+A template named like `03.22.2026 notables.txt`, created in the library folder, where you can jot down standout tracks by genre.
 
 Good time to use this:
-When starting a fresh sorting session for a new batch of music.
+When setting up a new USB stick, after changing the genre list, or when starting a fresh sorting session.
 
 ## Menu Option 2: Clean / Mark Empty Folders
 
@@ -86,7 +111,7 @@ What it asks for first:
 `Enter the folder to clean, or Q to return to menu`
 
 Use this on:
-The dated crate folder you want to clean up.
+Your music library folder (the one holding the numbered genre folders).
 
 Then it asks:
 `Delete empty folders? (y/n, or Q to return to menu)`
@@ -117,7 +142,7 @@ Then it optionally asks:
 `Create a pruned notables file with only genres that have music? (y/n, or Q to return to menu)`
 
 What that does:
-Creates a `.pruned` version of the notables file that keeps only sections for genres that still contain music.
+Creates a `.pruned` version of the most recently edited notables file in the library folder, keeping only sections for genres that contain music.
 
 Good time to use this:
 After sorting a crate, when you want to clean out unused folders and tidy the notes file.
@@ -538,7 +563,7 @@ This launches `xml_generator\rekordbox_xml_generator.py`.
 
 What it asks for:
 
-1. Scan mode (`1` for a single sorted folder, `2` for a parent folder containing multiple sorted folders, or `Q` to return to menu)
+1. Scan mode (`1` for your music library, `2` for a parent folder containing several libraries such as old dated `sorted` folders, or `Q` to return to menu)
 2. The folder path (or `Q` to return to menu)
 
 What it creates:
@@ -613,8 +638,8 @@ Closes the menu. You can also press `Q` at the main menu prompt instead.
 
 ### For a New Sorting Session
 
-1. Use Option 1 to build a new dated crate tree
-2. Sort your music into the created folders
+1. Use Option 1 on your library to make sure every genre folder exists
+2. Sort new tracks from `00 new` into the genre and energy folders
 3. Use Option 2 to clean or mark empty folders
 4. Optionally create a pruned notables file
 
