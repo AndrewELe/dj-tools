@@ -68,6 +68,8 @@ if defined DJTOOLS_SC_COOKIES_FILE (
     if errorlevel 1 (
         echo [WARN] No oauth_token in that cookies file - you are NOT logged in.
         echo        Re-export sc_cookies.txt while signed in to soundcloud.com.
+    ) else (
+        powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%\check_sc_token.ps1" "!DJTOOLS_SC_COOKIES_FILE!"
     )
 ) else if /I not "%DJTOOLS_SC_COOKIES_BROWSER%"=="none" (
     set "COOKIE_ARGS=--cookies-from-browser %DJTOOLS_SC_COOKIES_BROWSER%"

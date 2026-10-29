@@ -76,6 +76,24 @@ if [ -n "$COOKIE_FILE" ]; then
     if ! grep -q 'oauth_token' "$COOKIE_FILE" 2>/dev/null; then
         echo "[WARN] No oauth_token in that cookies file - you are NOT logged in."
         echo "       Re-export sc_cookies.txt while signed in to soundcloud.com."
+    else
+        # Warn a month before the login runs out, so sc_cookies.txt only needs
+        # re-exporting when it matters. Column 5 is expiry, column 6 the name.
+        OAUTH_EXPIRES="$(awk -F'\t' '$6 == "oauth_token" { print $5; exit }' "$COOKIE_FILE")"
+        if [[ "$OAUTH_EXPIRES" =~ ^[0-9]+$ ]] && [ "$OAUTH_EXPIRES" -gt 0 ]; then
+            NOW="$(date +%s)"
+            EXPIRY_DATE="$(date -r "$OAUTH_EXPIRES" +%Y-%m-%d)"
+            DAYS_LEFT=$(( (OAUTH_EXPIRES - NOW) / 86400 ))
+            if [ "$OAUTH_EXPIRES" -le "$NOW" ]; then
+                echo "[WARN] Your SoundCloud login in sc_cookies.txt expired on $EXPIRY_DATE."
+            elif [ "$DAYS_LEFT" -lt 30 ]; then
+                echo "[WARN] Your SoundCloud login in sc_cookies.txt expires in $DAYS_LEFT day(s), on $EXPIRY_DATE."
+            fi
+            if [ "$DAYS_LEFT" -lt 30 ]; then
+                echo "       Sign out and back in on soundcloud.com, then re-export"
+                echo "       sc_cookies.txt with the Get cookies.txt LOCALLY extension."
+            fi
+        fi
     fi
 elif [ "$(lower "$COOKIE_BROWSER")" != "none" ]; then
     COOKIE_ARGS=(--cookies-from-browser "$COOKIE_BROWSER")
